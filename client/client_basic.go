@@ -1,4 +1,4 @@
-package client
+package main
 
 import (
 	"../rfslib"
@@ -48,7 +48,7 @@ func main() {
 		lg.Println(err)
 		os.Exit(1)
 	} else {
-		lg.Printf("Total number of records in file %s: %v", SAMPLE_FNAME, numRecs)
+		lg.Printf("Total number of records in file %s: %v\n", SAMPLE_FNAME, numRecs)
 	}
 
 	// Read record
@@ -59,6 +59,6 @@ func main() {
 		lg.Println(err)
 		os.Exit(1)
 	} else {
-		lg.Printf("Read file %s at index %v: %v", SAMPLE_FNAME, index, record)
+		lg.Printf("Read file %s at index %v: %v\n", SAMPLE_FNAME, index, record)
 	}
 }

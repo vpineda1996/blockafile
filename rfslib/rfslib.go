@@ -10,7 +10,15 @@ it.
 
 package rfslib
 
-import "fmt"
+import (
+	"../shared"
+	"bytes"
+	"encoding/gob"
+	"fmt"
+	"log"
+	"net"
+	"os"
+)
 
 // A Record is the unit of file access (reading/appending) in RFS.
 type Record [512]byte
@@ -119,6 +127,9 @@ type RFS interface {
 	AppendRec(fname string, record *Record) (recordNum uint16, err error)
 }
 
+// Logger
+var lg = log.New(os.Stdout, "rfslib: ", log.Ltime)
+
 // The constructor for a new RFS object instance. Takes the miner's
 // IP:port address string as parameter, and the localAddr which is the
 // local IP:port to use to establish the connection to the miner.
@@ -130,43 +141,105 @@ type RFS interface {
 // succeeds. This call can return the following errors:
 // - Networking errors related to localAddr or minerAddr
 func Initialize(localAddr string, minerAddr string) (rfs RFS, err error) {
-	// TODO: Implement Initialize
-	// For now return a DisconnectedError
-	return nil, DisconnectedError(minerAddr)
+	// Check if rfs has already been initialized
+	if rfsInstance != nil {
+		lg.Println("RFS has already been initialized")
+		return *rfsInstance, nil
+	}
+
+	// Resolve TCP addresses
+	laddr, err := net.ResolveTCPAddr("tcp", localAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	maddr, err := net.ResolveTCPAddr("tcp", minerAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := net.DialTCP("tcp", laddr, maddr)
+	if err != nil {
+		return nil, err
+	}
+
+	rfsInstance = new(RFSInstance)
+	rfsInstance.tcpConn = conn
+	return *rfsInstance, nil
 }
 
 // Concrete implementation of RFS interface
+var rfsInstance *RFSInstance = nil
+
 type RFSInstance struct {
 	// TODO: Fields
+	tcpConn *net.TCPConn
 }
 
-func (rfs *RFSInstance) CreateFile(fname string) (err error) {
+func (rfs RFSInstance) CreateFile(fname string) (err error) {
 	// TODO: Implement CreateFile
 	err = nil
 	return
 }
 
-func (rfs *RFSInstance) ListFiles() (fnames []string, err error) {
-	// TODO: Implement ListFiles
-	fnames = make([]string, 0)
-	err = nil
-	return
+func (rfs RFSInstance) ListFiles() (fnames []string, err error) {
+	// Encode the client request
+	clientRequest := shared.RFSClientRequest{RequestType: shared.LIST_FILES}
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err = enc.Encode(clientRequest)
+	if err != nil {
+		lg.Println(err)
+		return
+	}
+
+	// Send to miner
+	lg.Println("Sending list files request to miner")
+	_, err = rfs.tcpConn.Write(buf.Bytes())
+	if err != nil {
+		// TODO. Should be returning DisconnectedError here?
+		lg.Println(err)
+		return
+	}
+
+	// Make a buffer to hold incoming response
+	responseBuf := make([]byte, 1024)
+
+	// Read the incoming connection into the buffer
+	readLen, err := rfs.tcpConn.Read(responseBuf)
+	if err != nil {
+		lg.Println(err)
+		return
+	}
+
+	// Decode the miner response
+	minerResponse := shared.RFSMinerResponse{}
+	var reader = bytes.NewReader(responseBuf[:readLen])
+	dec := gob.NewDecoder(reader)
+	err = dec.Decode(&minerResponse)
+	if err != nil {
+		lg.Println(err)
+		return
+	}
+
+	lg.Printf("miner responded to list files request: %v\n", minerResponse)
+	return minerResponse.FileNames, minerResponse.Err
 }
 
-func (rfs *RFSInstance) TotalRecs(fname string) (numRecs uint16, err error) {
+func (rfs RFSInstance) TotalRecs(fname string) (numRecs uint16, err error) {
 	// TODO: Implement TotalRecs
 	numRecs = 0
 	err = nil
 	return
 }
 
-func (rfs *RFSInstance) ReadRec(fname string, recordNum uint16, record *Record) (err error) {
+func (rfs RFSInstance) ReadRec(fname string, recordNum uint16, record *Record) (err error) {
 	// TODO: Implement ReadRec
 	err = nil
 	return
 }
 
-func (rfs *RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16, err error) {
+func (rfs RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16, err error) {
 	// TODO: Implement AppendRec
 	recordNum = 0
 	err = nil
