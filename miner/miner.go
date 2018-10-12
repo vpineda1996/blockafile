@@ -13,13 +13,13 @@ import (
 
 // Miner type declaration
 type Miner interface {
-	CreateFileHandler(fname string) (err error)
+	CreateFileHandler(fname string) (errorType int)
 	// ListFilesHandler() does not return any error because on the client-side, the only kind of error
 	// that can be returned is a DisconnectedError, which means we would never reach the Miner in the first place.
 	ListFilesHandler() (fnames []string)
-	TotalRecsHandler(fname string) (numRecs uint16, err error)
-	ReadRecHandler(fname string, recordNum uint16, record []byte) (err error)
-	AppendRecHandler(fname string, record []byte) (recordNum uint16, err error)
+	TotalRecsHandler(fname string) (numRecs uint16, errorType int)
+	ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType int)
+	AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType int)
 }
 
 var lg = log.New(os.Stdout, "miner: ", log.Ltime)
@@ -41,25 +41,31 @@ type MinerInstance struct {
 	// TODO. Fields
 }
 
-func (miner *MinerInstance) CreateFileHandler(fname string) (errorType int) {
+// errorType can be one of: FILE_EXISTS, BAD_FILENAME, -1
+func (miner MinerInstance) CreateFileHandler(fname string) (errorType int) {
 	// TODO
-	return shared.FILE_EXISTS
+	lg.Println("Handling create file request")
+	// return shared.FILE_EXISTS
+	return -1
 }
 
-func (miner *MinerInstance) ListFilesHandler() (fnames []string) {
+// errorType can be one of: -1
+func (miner MinerInstance) ListFilesHandler() (fnames []string) {
 	// TODO
 	lg.Println("Handling list files request")
 	fnames = []string{"sample_file1", "sample_file2", "sample_file3"}
 	return
 }
 
-func (miner *MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType int) {
+// errorType can be one of: FILE_DOES_NOT_EXIST, -1
+func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType int) {
 	// TODO
 	lg.Println("Handling total records request")
 	return 10, -1
 }
 
-func (miner *MinerInstance) ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType int) {
+// errorType can be one of: FILE_DOES_NOT_EXIST, RECORD_DOES_NOT_EXIST, -1
+func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType int) {
 	// TODO
 	lg.Println("Handling read record request")
 	var read_result [512]byte
@@ -67,9 +73,12 @@ func (miner *MinerInstance) ReadRecHandler(fname string, recordNum uint16) (reco
 	return read_result, -1
 }
 
-func (miner *MinerInstance) AppendRecHandler(fname string, record []byte) (recordNum uint16, errorType int) {
+// errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, -1
+func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType int) {
 	// TODO
-	return 0, shared.MAX_LEN_REACHED
+	lg.Println("Handling append record request")
+	// return 0, shared.MAX_LEN_REACHED
+	return 0, -1
 }
 
 // The miner is always listening for client connections.
@@ -146,13 +155,14 @@ func ServiceClientRequest(conn net.Conn) {
 		case shared.READ_REC:
 			readRec, readRecError := minerInstance.ReadRecHandler(
 				clientRequest.FileName, clientRequest.RecordNum)
-			minerResponse.Record = readRec
+			minerResponse.ReadRecord = readRec
 			minerResponse.ErrorType = readRecError
 		case shared.APPEND_REC:
 			// TODO
-			/*recordNum, appendRecError := minerInstance.AppendRecHandler(clientRequest.FileName, clientRequest.Record)
+			recordNum, appendRecError :=
+				minerInstance.AppendRecHandler(clientRequest.FileName, clientRequest.AppendRecord)
 			minerResponse.RecordNum = recordNum
-			minerResponse.ErrorType = appendRecError*/
+			minerResponse.ErrorType = appendRecError
 		default:
 			// Invalid request type, ignore it
 			continue

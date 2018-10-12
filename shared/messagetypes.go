@@ -22,6 +22,7 @@ type RFSClientRequest struct {
 	RequestType int
 	FileName string
 	RecordNum uint16
+	AppendRecord [512]byte
 }
 
 type RFSMinerResponse struct {
@@ -30,5 +31,5 @@ type RFSMinerResponse struct {
 	FileNames []string
 	NumRecords uint16
 	RecordNum uint16
-	Record [512]byte
+	ReadRecord [512]byte
 }

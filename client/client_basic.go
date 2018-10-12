@@ -31,6 +31,26 @@ func main() {
 	}
 
 	// Make some requests to the miner
+	// Create file
+	err = rfs.CreateFile(SAMPLE_FNAME)
+	if err != nil {
+		lg.Println(err)
+		os.Exit(1)
+	} else {
+		lg.Printf("Created file %s", SAMPLE_FNAME)
+	}
+
+	// Append record
+	record := new(rfslib.Record)
+	copy(record[:], []byte("new record"))
+	recNum, err := rfs.AppendRec(SAMPLE_FNAME, record)
+	if err != nil {
+		lg.Println(err)
+		os.Exit(1)
+	} else {
+		lg.Printf("Append record to file %s at position %v", SAMPLE_FNAME, recNum)
+	}
+
 	// List files
 	fnames, err := rfs.ListFiles()
 	if err != nil {
@@ -52,7 +72,7 @@ func main() {
 	}
 
 	// Read record
-	record := new(rfslib.Record)
+	record = new(rfslib.Record)
 	index := uint16(0)
 	err = rfs.ReadRec(SAMPLE_FNAME, index, record)
 	if err != nil {

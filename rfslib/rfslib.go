@@ -180,7 +180,6 @@ func TearDown() (err error) {
 var rfsInstance *RFSInstance = nil
 
 type RFSInstance struct {
-	// TODO: Fields
 	tcpConn *net.TCPConn
 	minerAddr string
 }
@@ -189,9 +188,24 @@ type RFSInstance struct {
 // RFS API Implementation
 
 func (rfs RFSInstance) CreateFile(fname string) (err error) {
-	// TODO: Implement CreateFile
-	err = nil
-	return
+	// Encode and send the client request
+	clientRequest := shared.RFSClientRequest{RequestType: shared.CREATE_FILE, FileName: fname}
+	err = rfs.sendClientRequest(clientRequest)
+	if err != nil {
+		return err
+	}
+
+	// Wait for response from miner
+	minerResponse, err := rfs.getMinerResponse()
+	if err != nil {
+		return err
+	}
+
+	// Generate the proper error to return to the client
+	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
+
+	lg.Printf("Miner responded to create file request: %v\n", minerResponse)
+	return responseErr
 }
 
 func (rfs RFSInstance) ListFiles() (fnames []string, err error) {
@@ -254,17 +268,31 @@ func (rfs RFSInstance) ReadRec(fname string, recordNum uint16, record *Record) (
 	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
 
 	// Copy the returned bytes into record
-	copy(record[:], minerResponse.Record[:])
+	copy(record[:], minerResponse.ReadRecord[:])
 
 	lg.Printf("Miner responded to read rec request: %v\n", minerResponse)
 	return responseErr
 }
 
 func (rfs RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16, err error) {
-	// TODO: Implement AppendRec
-	recordNum = 0
-	err = nil
-	return
+	// Encode and send the client request
+	clientRequest := shared.RFSClientRequest{RequestType: shared.APPEND_REC, FileName: fname, AppendRecord: *record}
+	err = rfs.sendClientRequest(clientRequest)
+	if err != nil {
+		return 0, err
+	}
+
+	// Wait for response from miner
+	minerResponse, err := rfs.getMinerResponse()
+	if err != nil {
+		return 0, err
+	}
+
+	// Generate the proper error to return to the client
+	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
+
+	lg.Printf("Miner responded to append record request: %v\n", minerResponse)
+	return minerResponse.RecordNum, responseErr
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -332,7 +360,7 @@ func (rfs RFSInstance) generateResponseError(
 		case shared.FILE_EXISTS:
 			err = FileExistsError(clientRequest.FileName)
 		case shared.MAX_LEN_REACHED:
-			err = FileExistsError(clientRequest.FileName)
+			err = FileMaxLenReachedError(clientRequest.FileName)
 		}
 	}
 	return
