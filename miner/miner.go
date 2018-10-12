@@ -4,7 +4,7 @@ import (
 	"../shared"
 	"bytes"
 	"encoding/gob"
-	"errors"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -41,30 +41,31 @@ type MinerInstance struct {
 	// TODO. Fields
 }
 
-func (miner *MinerInstance) CreateFileHandler(fname string) (err error) {
+func (miner *MinerInstance) CreateFileHandler(fname string) (errorType int) {
 	// TODO
-	return errors.New("implement CreateFileHandler")
+	return shared.FILE_EXISTS
 }
 
 func (miner *MinerInstance) ListFilesHandler() (fnames []string) {
 	// TODO
 	lg.Println("Handling list files request")
-	return make([]string, 0)
+	fnames = []string{"file1", "file2", "file3"}
+	return
 }
 
-func (miner *MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, err error) {
+func (miner *MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType int) {
 	// TODO
-	return 0, errors.New("implement TotalRecsHandler")
+	return 10, -1
 }
 
-func (miner *MinerInstance) ReadRecHandler(fname string, recordNum uint16, record []byte) (err error) {
+func (miner *MinerInstance) ReadRecHandler(fname string, recordNum uint16, record []byte) (errorType int) {
 	// TODO
-	return errors.New("implement ReadRecHandler")
+	return shared.RECORD_DOES_NOT_EXIST
 }
 
-func (miner *MinerInstance) AppendRecHandler(fname string, record []byte) (recordNum uint16, err error) {
+func (miner *MinerInstance) AppendRecHandler(fname string, record []byte) (recordNum uint16, errorType int) {
 	// TODO
-	return 0, errors.New("implement AppendRecHandler")
+	return 0, shared.MAX_LEN_REACHED
 }
 
 // The miner is always listening for client connections.
@@ -100,8 +101,16 @@ func ServiceClientRequest(conn net.Conn) {
 		// Read the incoming connection into the buffer.
 		readLen, err := conn.Read(requestBuf)
 		if err != nil {
-			//lg.Println(err) // TODO. Prints infinite amount of EOFs
-			continue
+			if err == io.EOF {
+				// Client connection has been closed.
+				lg.Println("Closing client connection")
+				conn.Close()
+				return
+			} else {
+				// Some other sort of error. Continue trying to read.
+				lg.Println(err)
+				continue
+			}
 		}
 
 		// Decode the client request.
@@ -117,27 +126,27 @@ func ServiceClientRequest(conn net.Conn) {
 		// Direct the request to the proper handler and create response
 		var responseBuf bytes.Buffer
 		enc := gob.NewEncoder(&responseBuf)
-		minerResponse := shared.RFSMinerResponse{Err: nil}
+		minerResponse := shared.RFSMinerResponse{ErrorType: -1}
 
 		switch clientRequest.RequestType {
 		case shared.CREATE_FILE:
 			createFileError := minerInstance.CreateFileHandler(clientRequest.FileName)
-			minerResponse.Err = createFileError
+			minerResponse.ErrorType = createFileError
 		case shared.LIST_FILES:
 			fnames := minerInstance.ListFilesHandler()
 			minerResponse.FileNames = fnames
 		case shared.TOTAL_RECS:
 			numRecs, totalRecsError := minerInstance.TotalRecsHandler(clientRequest.FileName)
 			minerResponse.NumRecords = numRecs
-			minerResponse.Err = totalRecsError
+			minerResponse.ErrorType = totalRecsError
 		case shared.READ_REC:
 			readRecError := minerInstance.ReadRecHandler(
 				clientRequest.FileName, clientRequest.RecordNum, clientRequest.Record)
-			minerResponse.Err = readRecError
+			minerResponse.ErrorType = readRecError
 		case shared.APPEND_REC:
 			recordNum, appendRecError := minerInstance.AppendRecHandler(clientRequest.FileName, clientRequest.Record)
 			minerResponse.RecordNum = recordNum
-			minerResponse.Err = appendRecError
+			minerResponse.ErrorType = appendRecError
 		default:
 			// Invalid request type, ignore it
 			continue

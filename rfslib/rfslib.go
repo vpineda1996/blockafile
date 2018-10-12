@@ -165,7 +165,15 @@ func Initialize(localAddr string, minerAddr string) (rfs RFS, err error) {
 
 	rfsInstance = new(RFSInstance)
 	rfsInstance.tcpConn = conn
+	rfsInstance.minerAddr = minerAddr
 	return *rfsInstance, nil
+}
+
+// For testing purposes
+func TearDown() (err error) {
+	err = rfsInstance.tcpConn.Close()
+	rfsInstance = nil
+	return
 }
 
 // Concrete implementation of RFS interface
@@ -174,7 +182,11 @@ var rfsInstance *RFSInstance = nil
 type RFSInstance struct {
 	// TODO: Fields
 	tcpConn *net.TCPConn
+	minerAddr string
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// RFSInstance API
 
 func (rfs RFSInstance) CreateFile(fname string) (err error) {
 	// TODO: Implement CreateFile
@@ -183,54 +195,45 @@ func (rfs RFSInstance) CreateFile(fname string) (err error) {
 }
 
 func (rfs RFSInstance) ListFiles() (fnames []string, err error) {
-	// Encode the client request
+	// Encode and send the client request
 	clientRequest := shared.RFSClientRequest{RequestType: shared.LIST_FILES}
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err = enc.Encode(clientRequest)
+	err = rfs.sendClientRequest(clientRequest)
 	if err != nil {
-		lg.Println(err)
-		return
+		return nil, err
 	}
 
-	// Send to miner
-	lg.Println("Sending list files request to miner")
-	_, err = rfs.tcpConn.Write(buf.Bytes())
+	// Wait for response from miner
+	minerResponse, err := rfs.getMinerResponse()
 	if err != nil {
-		// TODO. Should be returning DisconnectedError here?
-		lg.Println(err)
-		return
+		return nil, err
 	}
 
-	// Make a buffer to hold incoming response
-	responseBuf := make([]byte, 1024)
+	// Generate the proper error to return to the client
+	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
 
-	// Read the incoming connection into the buffer
-	readLen, err := rfs.tcpConn.Read(responseBuf)
-	if err != nil {
-		lg.Println(err)
-		return
-	}
-
-	// Decode the miner response
-	minerResponse := shared.RFSMinerResponse{}
-	var reader = bytes.NewReader(responseBuf[:readLen])
-	dec := gob.NewDecoder(reader)
-	err = dec.Decode(&minerResponse)
-	if err != nil {
-		lg.Println(err)
-		return
-	}
-
-	lg.Printf("miner responded to list files request: %v\n", minerResponse)
-	return minerResponse.FileNames, minerResponse.Err
+	lg.Printf("Miner responded to list files request: %v\n", minerResponse)
+	return minerResponse.FileNames, responseErr
 }
 
 func (rfs RFSInstance) TotalRecs(fname string) (numRecs uint16, err error) {
-	// TODO: Implement TotalRecs
-	numRecs = 0
-	err = nil
-	return
+	// Encode and send the client request
+	clientRequest := shared.RFSClientRequest{RequestType: shared.TOTAL_RECS, FileName: fname}
+	err = rfs.sendClientRequest(clientRequest)
+	if err != nil {
+		return 0, err
+	}
+
+	// Wait for response from miner
+	minerResponse, err := rfs.getMinerResponse()
+	if err != nil {
+		return 0, err
+	}
+
+	// Generate the proper error to return to the client
+	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
+
+	lg.Printf("Miner responded to total recs request: %v\n", minerResponse)
+	return minerResponse.NumRecords, responseErr
 }
 
 func (rfs RFSInstance) ReadRec(fname string, recordNum uint16, record *Record) (err error) {
@@ -243,5 +246,76 @@ func (rfs RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16
 	// TODO: Implement AppendRec
 	recordNum = 0
 	err = nil
+	return
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// RFSInstance helpers
+
+func (rfs RFSInstance) sendClientRequest(clientRequest shared.RFSClientRequest) (error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(clientRequest)
+	if err != nil {
+		// This may be a little harsh, but we should never hit encoding errors
+		panic(err)
+	}
+
+	// Send to miner
+	lg.Println("Sending client request to miner")
+	_, err = rfs.tcpConn.Write(buf.Bytes())
+	if err != nil {
+		// TODO. Should we be returning DisconnectedError here?
+		lg.Println(err)
+		return DisconnectedError(rfs.minerAddr)
+	}
+
+	return nil
+}
+
+func (rfs RFSInstance) getMinerResponse() (shared.RFSMinerResponse, error) {
+	minerResponse := shared.RFSMinerResponse{}
+
+	// Make a buffer to hold incoming response
+	responseBuf := make([]byte, 1024)
+
+	// Read the incoming connection into the buffer
+	readLen, err := rfs.tcpConn.Read(responseBuf)
+	if err != nil {
+		// TODO. Should we be returning DisconnectedError here?
+		lg.Println(err)
+		return minerResponse, DisconnectedError(rfs.minerAddr)
+	}
+
+	// Decode the miner response
+	var reader = bytes.NewReader(responseBuf[:readLen])
+	dec := gob.NewDecoder(reader)
+	err = dec.Decode(&minerResponse)
+	if err != nil {
+		// Again, we should never hit decoding errors
+		panic(err)
+	}
+
+	return minerResponse, nil
+}
+
+func (rfs RFSInstance) generateResponseError(
+	clientRequest shared.RFSClientRequest,
+	minerResponse shared.RFSMinerResponse) (err error) {
+	err = nil
+	if minerResponse.ErrorType != -1 {
+		switch minerResponse.ErrorType {
+		case shared.RECORD_DOES_NOT_EXIST:
+			err = RecordDoesNotExistError(clientRequest.RecordNum)
+		case shared.BAD_FILENAME:
+			err = BadFilenameError(clientRequest.FileName)
+		case shared.FILE_DOES_NOT_EXIST:
+			err = FileDoesNotExistError(clientRequest.FileName)
+		case shared.FILE_EXISTS:
+			err = FileExistsError(clientRequest.FileName)
+		case shared.MAX_LEN_REACHED:
+			err = FileExistsError(clientRequest.FileName)
+		}
+	}
 	return
 }

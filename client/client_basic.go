@@ -61,4 +61,10 @@ func main() {
 	} else {
 		lg.Printf("Read file %s at index %v: %v\n", SAMPLE_FNAME, index, record)
 	}
+
+	err = rfslib.TearDown()
+	if err != nil {
+		lg.Println(err)
+		os.Exit(1)
+	}
 }
