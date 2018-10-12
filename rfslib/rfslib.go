@@ -186,7 +186,7 @@ type RFSInstance struct {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-// RFSInstance API
+// RFS API Implementation
 
 func (rfs RFSInstance) CreateFile(fname string) (err error) {
 	// TODO: Implement CreateFile
@@ -237,9 +237,27 @@ func (rfs RFSInstance) TotalRecs(fname string) (numRecs uint16, err error) {
 }
 
 func (rfs RFSInstance) ReadRec(fname string, recordNum uint16, record *Record) (err error) {
-	// TODO: Implement ReadRec
-	err = nil
-	return
+	// Encode and send the client request
+	clientRequest := shared.RFSClientRequest{RequestType: shared.READ_REC, FileName: fname, RecordNum: recordNum}
+	err = rfs.sendClientRequest(clientRequest)
+	if err != nil {
+		return err
+	}
+
+	// Wait for response from miner
+	minerResponse, err := rfs.getMinerResponse()
+	if err != nil {
+		return err
+	}
+
+	// Generate the proper error to return to the client
+	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
+
+	// Copy the returned bytes into record
+	copy(record[:], minerResponse.Record[:])
+
+	lg.Printf("Miner responded to read rec request: %v\n", minerResponse)
+	return responseErr
 }
 
 func (rfs RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16, err error) {
@@ -250,7 +268,7 @@ func (rfs RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-// RFSInstance helpers
+// RFSInstance helper functions
 
 func (rfs RFSInstance) sendClientRequest(clientRequest shared.RFSClientRequest) (error) {
 	var buf bytes.Buffer

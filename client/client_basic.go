@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	SAMPLE_FNAME = "" //TODO
+	SAMPLE_FNAME = "sample_file1" //TODO
 )
 
 var lg = log.New(os.Stdout, "client_basic: ", log.Ltime)
@@ -59,7 +59,7 @@ func main() {
 		lg.Println(err)
 		os.Exit(1)
 	} else {
-		lg.Printf("Read file %s at index %v: %v\n", SAMPLE_FNAME, index, record)
+		lg.Printf("Read file %s at index %v: %v\n", SAMPLE_FNAME, index, string(record[:]))
 	}
 
 	err = rfslib.TearDown()

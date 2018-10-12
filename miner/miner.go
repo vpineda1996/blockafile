@@ -49,18 +49,22 @@ func (miner *MinerInstance) CreateFileHandler(fname string) (errorType int) {
 func (miner *MinerInstance) ListFilesHandler() (fnames []string) {
 	// TODO
 	lg.Println("Handling list files request")
-	fnames = []string{"file1", "file2", "file3"}
+	fnames = []string{"sample_file1", "sample_file2", "sample_file3"}
 	return
 }
 
 func (miner *MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType int) {
 	// TODO
+	lg.Println("Handling total records request")
 	return 10, -1
 }
 
-func (miner *MinerInstance) ReadRecHandler(fname string, recordNum uint16, record []byte) (errorType int) {
+func (miner *MinerInstance) ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType int) {
 	// TODO
-	return shared.RECORD_DOES_NOT_EXIST
+	lg.Println("Handling read record request")
+	var read_result [512]byte
+	copy(read_result[:], "Some nice record stuff")
+	return read_result, -1
 }
 
 func (miner *MinerInstance) AppendRecHandler(fname string, record []byte) (recordNum uint16, errorType int) {
@@ -140,13 +144,15 @@ func ServiceClientRequest(conn net.Conn) {
 			minerResponse.NumRecords = numRecs
 			minerResponse.ErrorType = totalRecsError
 		case shared.READ_REC:
-			readRecError := minerInstance.ReadRecHandler(
-				clientRequest.FileName, clientRequest.RecordNum, clientRequest.Record)
+			readRec, readRecError := minerInstance.ReadRecHandler(
+				clientRequest.FileName, clientRequest.RecordNum)
+			minerResponse.Record = readRec
 			minerResponse.ErrorType = readRecError
 		case shared.APPEND_REC:
-			recordNum, appendRecError := minerInstance.AppendRecHandler(clientRequest.FileName, clientRequest.Record)
+			// TODO
+			/*recordNum, appendRecError := minerInstance.AppendRecHandler(clientRequest.FileName, clientRequest.Record)
 			minerResponse.RecordNum = recordNum
-			minerResponse.ErrorType = appendRecError
+			minerResponse.ErrorType = appendRecError*/
 		default:
 			// Invalid request type, ignore it
 			continue
