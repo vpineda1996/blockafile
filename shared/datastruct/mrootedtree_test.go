@@ -1,4 +1,4 @@
-package mrootedtree
+package tree
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 func TestBasicTree(t *testing.T) {
 
 	t.Run("add first root", func(t *testing.T) {
-		mtr := New()
+		mtr := NewMRootTree()
 		mtr.PrependElement(EmptyElement{}, nil)
 
 		equals(t, uint64(0), mtr.Height)
@@ -21,13 +21,12 @@ func TestBasicTree(t *testing.T) {
 
 		rts := mtr.GetRoots()
 		root := rts[0]
-		equals(t,0, root.Parents)
+		equals(t,0, len(root.Parents))
 		assert(t, nil == root.Next(), "should not point to anything")
-		equals(t, uint64(0), root.NodeId)
 	})
 
 	t.Run("add root and then, child", func(t *testing.T) {
-		mtr := New()
+		mtr := NewMRootTree()
 		rt, _ := mtr.PrependElement(EmptyElement{}, nil)
 		mtr.PrependElement(EmptyElement{}, rt)
 
@@ -37,14 +36,12 @@ func TestBasicTree(t *testing.T) {
 		rts := mtr.GetRoots()
 
 		child := rts[0].Next()
-		equals(t,1, child.Parents)
+		equals(t,[]*node{rts[0]}, child.Parents)
 		assert(t, nil == child.Next(), "should not point to anything")
-		equals(t, uint64(0), child.NodeId)
 
 		root := rts[0]
-		equals(t,0, root.Parents)
+		equals(t,[]*node{}, root.Parents)
 		assert(t, child == root.Next(), "should be pointing to child")
-		equals(t, uint64(1), root.NodeId)
 	})
 
 }
@@ -90,7 +87,7 @@ func TestComplexTreeInserts(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			nds := make([]*node, 0, 100)
 			ee := EmptyElement{}
-			mtr := New()
+			mtr := NewMRootTree()
 
 			// create a root
 			e, _ :=  mtr.PrependElement(ee, nil)
@@ -109,6 +106,19 @@ func TestComplexTreeInserts(t *testing.T) {
 			equals(t, test.roots, len(mtr.roots))
 			assert(t, nds[test.longestChainId] == mtr.GetLongestChain(), "Longest chain should match")
 			equals(t, test.height, mtr.Height)
+
+
+			// check if all of the nodes are on the tree
+			height := mtr.GetLongestChain().Height
+			for root := mtr.GetLongestChain(); root != nil; root = root.Next() {
+				if _, ok := mtr.Find(root.NodeId); !ok {
+					t.Fail()
+				}
+				if height != root.Height {
+					t.Fail()
+				}
+				height -=1
+			}
 		})
 	}
 }

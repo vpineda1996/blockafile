@@ -1,7 +1,6 @@
-package mrootedtree
+package tree
 
 import (
-	"errors"
 	"io"
 	"log"
 	"math/rand"
@@ -37,7 +36,7 @@ type node struct {
 	Height uint64
 	child *node
 	Value Element
-	Parents int
+	Parents []*node
 }
 
 func (n *node) Next() (*node)  {
@@ -56,10 +55,19 @@ type MRootTree struct {
 	// fast way to access roots
 	rootsFasS map[*node]int
 
+	// node id -> to multiple nodes (sometimes they collide if we are looking for hashes)
+	nodes map[string][]*node
+
 	// Head of the longest chain, get
 	// through GetLongestChain
 	longestChainHead *node
 }
+
+func (t *MRootTree) Find(id string) ([]*node, bool){
+	v, ok := t.nodes[id]
+	return v, ok
+}
+
 
 // adds an element to the tree given a root, if the head is not a root
 // then, we will add a new root to the tree, head can be nil
@@ -72,21 +80,26 @@ func (t *MRootTree) PrependElement(e Element, head *node) (*node, error) {
 			child: head,
 			Height: head.Height + 1,
 			NodeId: e.Id(),
-			Parents: 0,
+			Parents: make([]*node, 0, 1),
 		}
-		head.Parents += 1
-	} else if len(t.roots) == 0 {
+		head.Parents = append(head.Parents, &newNode)
+	} else {
 		newNode = node{
 			Value: e,
 			child: nil,
 			Height: 0,
 			NodeId: e.Id(),
-			Parents: 0,
+			Parents: make([]*node, 0, 1),
 		}
-	} else {
-		panic("Cannot prepend a node that doesnt ")
-		return nil, errors.New("cannot prepend node with no root")
 	}
+
+	// the node id is the same as the node hash which sometimes collides so we want to handle that case as well
+	if v, ok := t.nodes[newNode.NodeId]; ok {
+		t.nodes[newNode.NodeId] = append(v, &newNode)
+	} else {
+		t.nodes[newNode.NodeId] = []*node{&newNode}
+	}
+
 
 	// append to map and root keeper
 	if idx, ok := t.rootsFasS[head]; ok {
@@ -120,11 +133,12 @@ func (t *MRootTree) GetLongestChain() *node {
 	return t.longestChainHead
 }
 
-func New() *MRootTree {
+func NewMRootTree() *MRootTree {
 	v := new(MRootTree)
 	v.roots = make([]*node, 0, 10)
 	v.rootsFasS = make(map[*node]int)
 	v.Height = 0
+	v.nodes = make(map[string][]*node)
 
 	return v
 }
