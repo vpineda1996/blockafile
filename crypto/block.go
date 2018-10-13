@@ -1,7 +1,7 @@
 package crypto
 
 import (
-	"../shared/tree"
+	"../shared/datastruct"
 	"bytes"
 	"crypto/md5"
 	"encoding/base64"
@@ -85,7 +85,7 @@ func (b BlockElement) Encode() []byte {
 	return buf.Bytes()
 }
 
-func (b BlockElement) New(r io.Reader) tree.Element {
+func (b BlockElement) New(r io.Reader) datastruct.Element {
 	newBlock := Block{}
 	newBe := BlockElement{
 		Block: &newBlock,
@@ -99,6 +99,10 @@ func (b BlockElement) New(r io.Reader) tree.Element {
 	}
 
 	return newBe
+}
+
+func (b BlockElement) ParentId() string {
+	return base64.StdEncoding.EncodeToString(b.Block.PrevBlock[:])
 }
 
 func (b BlockElement) Id() string {

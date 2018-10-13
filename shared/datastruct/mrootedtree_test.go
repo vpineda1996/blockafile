@@ -1,4 +1,4 @@
-package tree
+package datastruct
 
 import (
 	"fmt"
@@ -36,11 +36,11 @@ func TestBasicTree(t *testing.T) {
 		rts := mtr.GetRoots()
 
 		child := rts[0].Next()
-		equals(t,[]*node{rts[0]}, child.Parents)
+		equals(t,[]*Node{rts[0]}, child.Parents)
 		assert(t, nil == child.Next(), "should not point to anything")
 
 		root := rts[0]
-		equals(t,[]*node{}, root.Parents)
+		equals(t,[]*Node{}, root.Parents)
 		assert(t, child == root.Next(), "should be pointing to child")
 	})
 
@@ -85,7 +85,7 @@ func TestComplexTreeInserts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			nds := make([]*node, 0, 100)
+			nds := make([]*Node, 0, 100)
 			ee := EmptyElement{}
 			mtr := NewMRootTree()
 
