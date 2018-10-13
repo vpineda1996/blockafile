@@ -4,9 +4,11 @@ import (
 	"../../shared/datastruct"
 )
 
+type Filename string
+type Filedata []byte
 
 type FilesystemState struct {
-	accounts map[string]int
+	accounts map[Filename]Filedata
 }
 
 func NewFilesystemState(nd *datastruct.Node) FilesystemState {

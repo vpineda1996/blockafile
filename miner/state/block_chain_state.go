@@ -4,9 +4,11 @@ import (
 	"../../shared/datastruct"
 )
 
+type Account string
+type Balance int
 
 type BlockChainState struct {
-	accounts map[string]int
+	accounts map[Account]Balance
 }
 
 func NewBlockChainState(nd *datastruct.Node) BlockChainState {
