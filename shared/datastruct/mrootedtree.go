@@ -1,4 +1,4 @@
-package mrootedtree
+package datastruct
 
 import (
 	"errors"
@@ -32,15 +32,15 @@ func (EmptyElement) New(r io.Reader) Element {
 	return EmptyElement{}
 }
 
-type node struct {
+type Node struct {
 	NodeId string
 	Height uint64
-	child *node
+	child *Node
 	Value Element
-	Parents int
+	Parents []*Node
 }
 
-func (n *node) Next() (*node)  {
+func (n *Node) Next() (*Node)  {
 	return n.child
 }
 
@@ -52,41 +52,55 @@ type MRootTree struct {
 	Height uint64
 
 	// all of the roots
-	roots []*node
+	roots []*Node
 	// fast way to access roots
-	rootsFasS map[*node]int
+	rootsFasS map[*Node]int
+
+	// node id -> to multiple nodes (sometimes they collide if we are looking for hashes)
+	nodes map[string]*Node
 
 	// Head of the longest chain, get
 	// through GetLongestChain
-	longestChainHead *node
+	longestChainHead *Node
 }
+
+func (t *MRootTree) Find(id string) (*Node, bool){
+	v, ok := t.nodes[id]
+	return v, ok
+}
+
 
 // adds an element to the tree given a root, if the head is not a root
 // then, we will add a new root to the tree, head can be nil
-func (t *MRootTree) PrependElement(e Element, head *node) (*node, error) {
-	var newNode node
+func (t *MRootTree) PrependElement(e Element, head *Node) (*Node, error) {
+	var newNode Node
 
 	if head != nil {
-		newNode = node{
+		newNode = Node{
 			Value: e,
 			child: head,
 			Height: head.Height + 1,
 			NodeId: e.Id(),
-			Parents: 0,
+			Parents: make([]*Node, 0, 1),
 		}
-		head.Parents += 1
-	} else if len(t.roots) == 0 {
-		newNode = node{
+		head.Parents = append(head.Parents, &newNode)
+	} else {
+		newNode = Node{
 			Value: e,
 			child: nil,
 			Height: 0,
 			NodeId: e.Id(),
-			Parents: 0,
+			Parents: make([]*Node, 0, 1),
 		}
-	} else {
-		panic("Cannot prepend a node that doesnt ")
-		return nil, errors.New("cannot prepend node with no root")
 	}
+
+	// the node id is the same as the node hash which sometimes collides so we want to handle that case as well
+	if _, ok := t.nodes[newNode.NodeId]; ok {
+		return nil, errors.New("cannot add node to tree as there is another on the tree")
+	} else {
+		t.nodes[newNode.NodeId] = &newNode
+	}
+
 
 	// append to map and root keeper
 	if idx, ok := t.rootsFasS[head]; ok {
@@ -110,21 +124,22 @@ func (t *MRootTree) PrependElement(e Element, head *node) (*node, error) {
 }
 
 // Gets all of the roots of the tree
-func (t *MRootTree) GetRoots() ([]*node) {
+func (t *MRootTree) GetRoots() ([]*Node) {
 	return t.roots[:]
 }
 
 // Gets the longest chain, if the length of two chains is exactly the same
 // then we return either one of them
-func (t *MRootTree) GetLongestChain() *node {
+func (t *MRootTree) GetLongestChain() *Node {
 	return t.longestChainHead
 }
 
-func New() *MRootTree {
+func NewMRootTree() *MRootTree {
 	v := new(MRootTree)
-	v.roots = make([]*node, 0, 10)
-	v.rootsFasS = make(map[*node]int)
+	v.roots = make([]*Node, 0, 10)
+	v.rootsFasS = make(map[*Node]int)
 	v.Height = 0
+	v.nodes = make(map[string]*Node)
 
 	return v
 }

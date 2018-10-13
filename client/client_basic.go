@@ -10,7 +10,7 @@ const (
 	SAMPLE_FNAME = "sample_file1" //TODO
 )
 
-var lg = log.New(os.Stdout, "client_basic: ", log.Ltime)
+var lg = log.New(os.Stdout, "client_basic: ", log.Lshortfile|log.Lmicroseconds)
 
 // usage: go run client_basic.go [localip:localport] [minerip:minerport]
 // e.g. : go run client_basic.go 127.0.0.1:8080		 127.0.0.1:9090
