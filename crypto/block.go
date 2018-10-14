@@ -25,6 +25,7 @@ type BlockOp struct {
 	// Miner id of the person that create the request
 	Creator string
 	Filename string
+	RecordNumber uint32
 	Data BlockOpData
 }
 
@@ -53,16 +54,17 @@ func (b *Block) Hash() []byte {
 		buf := &bytes.Buffer{}
 		buf.Write(b.PrevBlock[:])
 
+		intBuff := make([]byte, unsafe.Sizeof(uint32(1)))
 		for _, v := range b.Records {
 			buf.Write([]byte(v.Filename))
 			buf.Write(v.Data[:])
+			binary.LittleEndian.PutUint32(intBuff, v.RecordNumber)
+			buf.Write(intBuff)
 		}
 
 		buf.Write([]byte(b.MinerId))
-
-		nonceEnc := make([]byte, unsafe.Sizeof(uint32(1)))
-		binary.LittleEndian.PutUint32(nonceEnc, b.Nonce)
-		buf.Write(nonceEnc)
+		binary.LittleEndian.PutUint32(intBuff, b.Nonce)
+		buf.Write(intBuff)
 
 		sum := md5.Sum(buf.Bytes())
 		return sum[:]

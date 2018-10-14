@@ -1,8 +1,8 @@
 package state
 
 import (
-	"../../shared/datastruct"
 	"../../crypto"
+	"../../shared/datastruct"
 	"errors"
 	"strconv"
 )
@@ -11,6 +11,7 @@ type Filename string
 type FileData []byte
 type FileInfo struct {
 	Creator string
+	NumberOfRecords uint32
 	Data    FileData
 }
 
@@ -88,12 +89,18 @@ func evaluateFSBlockOps(fs map[Filename]*FileInfo, bcs []*crypto.BlockOp ) error
 			}
 			fi := FileInfo {
 				Data:    make([]byte, 0, crypto.DataBlockSize),
+				NumberOfRecords: 0,
 				Creator: tx.Creator,
 			}
 			fs[Filename(tx.Filename)] = &fi
 		case crypto.AppendFile:
 			if f, exists := fs[Filename(tx.Filename)]; exists {
-				fs[Filename(tx.Filename)].Data = append(f.Data, FileData(tx.Data[:])...)
+				if tx.RecordNumber != f.NumberOfRecords {
+					return errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
+						" to file " + tx.Filename + " duplicated in chain, failing")
+				}
+				f.NumberOfRecords += 1
+				f.Data = append(f.Data, FileData(tx.Data[:])...)
 				return nil
 			}
 			return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
