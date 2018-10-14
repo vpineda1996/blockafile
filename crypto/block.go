@@ -4,9 +4,9 @@ import (
 	"../shared/datastruct"
 	"bytes"
 	"crypto/md5"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/gob"
+	"fmt"
 	"io"
 	"log"
 	"unsafe"
@@ -104,9 +104,9 @@ func (b BlockElement) New(r io.Reader) datastruct.Element {
 }
 
 func (b BlockElement) ParentId() string {
-	return base64.StdEncoding.EncodeToString(b.Block.PrevBlock[:])
+	return fmt.Sprintf("%x", b.Block.PrevBlock[:])
 }
 
 func (b BlockElement) Id() string {
-	return base64.StdEncoding.EncodeToString(b.Block.Hash())
+	return fmt.Sprintf("%x", b.Block.Hash())
 }

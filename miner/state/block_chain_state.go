@@ -78,7 +78,7 @@ func generateState(blockReward Balance, txFee Balance, nodes []*datastruct.Node)
 			award(res, Account(bae.Block.MinerId), blockReward)
 
 			// remove money for all involved accounts
-			err := evaluateBlockOps(res, bae.Block.Records, txFee, blockReward)
+			err := evaluateBalanceBlockOps(res, bae.Block.Records, txFee, blockReward)
 			if err != nil {
 				return nil, err
 			}
@@ -91,7 +91,7 @@ func generateState(blockReward Balance, txFee Balance, nodes []*datastruct.Node)
 }
 
 // TODO EC1 delete: do something with block reward here
-func evaluateBlockOps(accs map[Account]Balance, bcs []*crypto.BlockOp, txFee Balance, blockReward Balance) error {
+func evaluateBalanceBlockOps(accs map[Account]Balance, bcs []*crypto.BlockOp, txFee Balance, blockReward Balance) error {
 	for _, tx := range bcs {
 		switch tx.Type {
 		case crypto.CreateFile, crypto.AppendFile:
@@ -128,18 +128,4 @@ func award(accs map[Account]Balance, act Account, rw Balance) {
 		accs[act] = rw
 	}
 	lg.Printf("Account %v got awarded %v, balance: %v", act, rw, accs[act])
-}
-
-func transverseChain(root *datastruct.Node) []*datastruct.Node {
-	res := make([]*datastruct.Node, root.Height + 1)
-	// create list
-	for nd, i := root, 0; nd != nil; nd, i = nd.Next(), i + 1 {
-		res[i] = nd
-	}
-	// reverse
-	for l, r := 0, len(res) - 1; l < r; l, r = l + 1, r - 1 {
-		res[l], res[r] = res[r], res[l]
-	}
-
-	return res
 }

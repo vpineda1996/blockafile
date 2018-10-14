@@ -84,7 +84,7 @@ func buildTree(treeDef treeBuilderTest) *MRootTree {
 
 }
 
-func TestSimpleTree(t *testing.T) {
+func TestSimpleBlockChainTree(t *testing.T) {
 	t.Run("returns empty state on empty tree", func(t *testing.T) {
 		tree := NewMRootTree()
 		bkState, _ := NewBlockChainState(blockReward, txFee, tree.GetLongestChain())
@@ -138,7 +138,7 @@ func TestSimpleTree(t *testing.T) {
 	})
 }
 
-func TestComplexTree(t *testing.T) {
+func TestComplexBlockChainTree(t *testing.T) {
 	t.Run("long branch with multiple accounts", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,

@@ -108,7 +108,7 @@ func (t *MRootTree) PrependElement(e Element, head *Node) (*Node, error) {
 		delete(t.rootsFasS, head)
 		t.rootsFasS[&newNode] = idx
 	} else {
-		lg.Printf("Adding new root: %v", e)
+		lg.Printf("Adding new root: %v", e.Id())
 		t.roots = append(t.roots, &newNode)
 		t.rootsFasS[&newNode] = len(t.roots) - 1
 	}
