@@ -22,6 +22,8 @@ const (
 )
 type BlockOp struct {
 	Type BlockOpType
+	// Miner id of the person that create the request
+	Creator string
 	Filename string
 	Data BlockOpData
 }

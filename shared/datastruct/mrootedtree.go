@@ -96,7 +96,7 @@ func (t *MRootTree) PrependElement(e Element, head *Node) (*Node, error) {
 
 	// the node id is the same as the node hash which sometimes collides so we want to handle that case as well
 	if _, ok := t.nodes[newNode.NodeId]; ok {
-		return nil, errors.New("cannot add node to tree as there is another on the tree")
+		return nil, errors.New("cannot add node to tree as there is another node with the same has on the tree")
 	} else {
 		t.nodes[newNode.NodeId] = &newNode
 	}

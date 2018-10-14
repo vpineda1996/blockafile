@@ -11,7 +11,12 @@ import (
 )
 
 func TestSimpleBlock(t *testing.T) {
-	record := BlockOp{CreateFile, "", BlockOpData{20}}
+	record := BlockOp{
+		Type:CreateFile,
+		Creator: "",
+		Data: BlockOpData{20},
+		Filename: "",
+	}
 	records := make([]*BlockOp, 1)
 	records[0] = &record
 	prevBlock := [md5.Size]byte {20, 32, 1}
@@ -54,7 +59,12 @@ func TestSimpleBlock(t *testing.T) {
 }
 
 func TestEncoding(t *testing.T) {
-	record := BlockOp{CreateFile, "fs.exe", BlockOpData{20}}
+	record := BlockOp{
+		Type:CreateFile,
+		Creator: "",
+		Data: BlockOpData{20},
+		Filename: "",
+	}
 	records := make([]*BlockOp, 1)
 	records[0] = &record
 	prevBlock := [md5.Size]byte {20, 32, 1}
