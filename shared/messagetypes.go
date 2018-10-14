@@ -13,12 +13,11 @@ const (
 // Failure types
 type FailureType int
 const (
-	RECORD_DOES_NOT_EXIST = iota
-	BAD_FILENAME
+	BAD_FILENAME = iota
 	FILE_DOES_NOT_EXIST
 	FILE_EXISTS
 	MAX_LEN_REACHED
-	GENERIC_ERROR = -1
+	NO_ERROR = -1
 )
 
 type RFSClientRequest struct {

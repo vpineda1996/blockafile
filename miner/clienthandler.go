@@ -75,7 +75,7 @@ func (c ClientHandler) ServiceClientRequest(conn net.Conn) {
 		var responseBuf bytes.Buffer
 		enc := gob.NewEncoder(&responseBuf)
 		// todo ksenia why -1? ill call it generic error, maybe we can be more specific?
-		minerResponse := shared.RFSMinerResponse{ErrorType: shared.GENERIC_ERROR}
+		minerResponse := shared.RFSMinerResponse{ErrorType: shared.NO_ERROR}
 
 		switch clientRequest.RequestType {
 		case shared.CREATE_FILE:

@@ -41,7 +41,7 @@ type MinerInstance struct {
 	// TODO. Fields
 }
 
-// errorType can be one of: FILE_EXISTS, BAD_FILENAME, GENERIC_ERROR
+// errorType can be one of: FILE_EXISTS, BAD_FILENAME, NO_ERROR
 func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureType) {
 	// TODO
 	lg.Println("Handling create file request")
@@ -49,7 +49,6 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 	return -1
 }
 
-// errorType can be one of: GENERIC_ERROR
 func (miner MinerInstance) ListFilesHandler() (fnames []string) {
 	// TODO
 	lg.Println("Handling list files request")
@@ -57,14 +56,14 @@ func (miner MinerInstance) ListFilesHandler() (fnames []string) {
 	return
 }
 
-// errorType can be one of: FILE_DOES_NOT_EXIST, GENERIC_ERROR
+// errorType can be one of: FILE_DOES_NOT_EXIST, NO_ERROR
 func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType) {
 	// TODO
 	lg.Println("Handling total records request")
 	return 10, -1
 }
 
-// errorType can be one of: FILE_DOES_NOT_EXIST, RECORD_DOES_NOT_EXIST, GENERIC_ERROR
+// errorType can be one of: FILE_DOES_NOT_EXIST, NO_ERROR
 func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType FailureType) {
 	// TODO
 	lg.Println("Handling read record request")
@@ -73,7 +72,7 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 	return read_result, -1
 }
 
-// errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, GENERIC_ERROR
+// errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, NO_ERROR
 func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType) {
 	// TODO
 	lg.Println("Handling append record request")
