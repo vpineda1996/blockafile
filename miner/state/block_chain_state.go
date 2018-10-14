@@ -1,8 +1,8 @@
 package state
 
 import (
-	"../../shared/datastruct"
 	"../../crypto"
+	"../../shared/datastruct"
 	"errors"
 	"strconv"
 )
@@ -10,36 +10,42 @@ import (
 type Account string
 type Balance int
 
-type BlockChainState struct {
+type AccountsState struct {
 	blockReward Balance
 	txFee Balance
 	accounts map[Account]Balance
 }
 
-func (b BlockChainState) GetAll() map[Account]Balance {
+func (b AccountsState) GetAll() map[Account]Balance {
 	return b.accounts
 }
 
-func (b BlockChainState) GetAccountBalance(acc Account) Balance {
+func (b AccountsState) GetAccountBalance(acc Account) Balance {
 	if v, ok := b.accounts[acc]; ok {
 		return v
 	}
 	return 0
 }
 
-func NewBlockChainState(blockReward int, txFee int, nd *datastruct.Node) (BlockChainState, error) {
+func (b *AccountsState) update(accUp map[Account]Balance) {
+	for k,v := range accUp {
+		award(b.accounts, k, v)
+	}
+}
+
+func NewAccountsState(blockReward int, txFee int, nd *datastruct.Node) (AccountsState, error) {
 	if nd == nil {
-		return BlockChainState{
+		return AccountsState{
 			accounts: make(map[Account]Balance),
 		}, nil
 	}
-	lg.Printf("Creating new blockchain state with %v reward and %v as top", blockReward, nd.NodeId)
+	lg.Printf("Creating new blockchain state with %v reward and %v as top", blockReward, nd.Id)
 	nds := transverseChain(nd)
 	st, err := generateState(Balance(blockReward), Balance(txFee), nds)
 	if err != nil {
-		return BlockChainState{}, err
+		return AccountsState{}, err
 	}
-	return BlockChainState{
+	return AccountsState{
 		blockReward: Balance(blockReward),
 		txFee: Balance(txFee),
 		accounts: st,
@@ -109,7 +115,7 @@ func evaluateBalanceBlockOps(accs map[Account]Balance, bcs []*crypto.BlockOp, tx
 func spend(accs map[Account]Balance, act Account, fee Balance) error  {
 	lg.Printf("Account %v spent %v", act, fee)
 	if v, ok := accs[act]; ok {
-		if v <= fee {
+		if v >= fee {
 			accs[act] -= fee
 		} else {
 			return errors.New("account " + string(act) + " has balance: " + strconv.Itoa(int(v)) +

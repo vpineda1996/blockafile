@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"testing"
 )
 
@@ -53,9 +54,53 @@ func TestSimpleBlock(t *testing.T) {
 			Records: records,
 		}
 		equals(t,
-			[]byte{0xa4, 0xef, 0xe6, 0xb2, 0x97, 0x3b, 0xeb, 0x25, 0x4e, 0xed, 0x81, 0x63, 0x14, 0x5f, 0xaf, 0xda},
+			[]byte{0x95, 0x6, 0x6f, 0xeb, 0xb, 0x15, 0x7e, 0xd7, 0xaf, 0xbe, 0x3e, 0x41, 0x84, 0x5d, 0x83, 0xca},
 			bk.Hash())
 	})
+}
+
+func TestNonceFinding(t *testing.T) {
+	record := BlockOp{
+		Type:CreateFile,
+		Creator: "",
+		Data: BlockOpData{20},
+		Filename: "",
+	}
+	records := make([]*BlockOp, 1)
+	records[0] = &record
+	prevBlock := [md5.Size]byte {20, 32, 1}
+	minerId := "asdasf122"
+	nonce := uint32(232412)
+	tests := []struct {
+		zeros int
+		mask []byte
+	}{
+		{1, []byte{0x1}},
+		{4, []byte{0xF}},
+		{8, []byte{0xFF}},
+		{10, []byte{0xFF, 0x3}},
+		{16, []byte{0xFF, 0xFF}},
+		{20, []byte{0xFF, 0xFF, 0xF}},
+	}
+	for _, test := range tests {
+		t.Run(strconv.Itoa(test.zeros), func(t *testing.T) {
+			bk := Block{
+				Type: RegularBlock,
+				Nonce: nonce,
+				MinerId: minerId,
+				PrevBlock: prevBlock,
+				Records: records,
+			}
+			bk.FindNonce(test.zeros)
+			h := bk.Hash()
+			hSize := len(h)
+			for i, msk := range test.mask {
+				if h[hSize - 1 - i] & msk != 0 {
+					t.Fail()
+				}
+			}
+		})
+	}
 }
 
 func TestEncoding(t *testing.T) {
@@ -89,6 +134,8 @@ func TestEncoding(t *testing.T) {
 		equals(t, be.Id(), btck.Id())
 	})
 }
+
+
 
 // Taken from https://github.com/benbjohnson/testing
 // assert fails the test if the condition is false.

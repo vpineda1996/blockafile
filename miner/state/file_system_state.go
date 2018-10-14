@@ -23,6 +23,12 @@ func (b FilesystemState) GetAll() map[Filename]*FileInfo {
 	return b.fs
 }
 
+func (b *FilesystemState) update(newData map[Filename]*FileInfo) {
+	for k, v := range newData {
+		b.fs[k] = v
+	}
+}
+
 func (b FilesystemState) GetFile(acc Filename) (*FileInfo, bool) {
 	v, ok := b.fs[acc]
 	return v, ok
@@ -34,7 +40,7 @@ func NewFilesystemState(nd *datastruct.Node) (FilesystemState, error) {
 			fs: make(map[Filename]*FileInfo),
 		}, nil
 	}
-	lg.Printf("Creating new fs state with %v as top", nd.NodeId)
+	lg.Printf("Creating new fs state with %v as top", nd.Id)
 	nds := transverseChain(nd)
 	fs, err := generateFilesystem(nds)
 	return FilesystemState{
@@ -79,11 +85,13 @@ func generateFilesystem(nodes []*datastruct.Node) (map[Filename]*FileInfo, error
 	}
 	return res, nil
 }
+
 // TODO EC1 delete add the case over here to add the record
 func evaluateFSBlockOps(fs map[Filename]*FileInfo, bcs []*crypto.BlockOp ) error {
 	for _, tx := range bcs {
 		switch tx.Type {
 		case crypto.CreateFile:
+			lg.Printf("Creating file %v", tx.Filename)
 			if _, exists := fs[Filename(tx.Filename)]; exists {
 				return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
 			}
@@ -94,6 +102,7 @@ func evaluateFSBlockOps(fs map[Filename]*FileInfo, bcs []*crypto.BlockOp ) error
 			}
 			fs[Filename(tx.Filename)] = &fi
 		case crypto.AppendFile:
+			lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
 			if f, exists := fs[Filename(tx.Filename)]; exists {
 				if tx.RecordNumber != f.NumberOfRecords {
 					return errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
@@ -101,9 +110,9 @@ func evaluateFSBlockOps(fs map[Filename]*FileInfo, bcs []*crypto.BlockOp ) error
 				}
 				f.NumberOfRecords += 1
 				f.Data = append(f.Data, FileData(tx.Data[:])...)
-				return nil
+			} else {
+				return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
 			}
-			return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
 		default:
 			return errors.New("vous les hommes êtes tous les mêmes, Macho mais cheap, Bande de mauviettes infidèles")
 		}
