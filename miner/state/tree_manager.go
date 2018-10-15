@@ -20,6 +20,30 @@ func (t *TreeManager) AddClient(c *rpc.Client) {
 	t.clients = append(t.clients, c)
 }
 
+func (t *TreeManager) GetBlock(id string) (*crypto.Block, bool){
+	v, ok := t.mTree.Find(id)
+	if !ok {
+		return nil, false
+	}
+	bk, ok := v.Value.(crypto.BlockElement)
+	if !ok {
+		return nil, false
+	}
+	return bk.Block, true
+}
+
+func (t *TreeManager) GetRoots() []*crypto.Block {
+	arr := t.mTree.GetRoots()
+	bkArr := make([]*crypto.Block, len(arr))
+	for i, v := range arr {
+		bk, ok := v.Value.(crypto.BlockElement)
+		if !ok {
+			continue
+		}
+		bkArr[i] = bk.Block
+	}
+	return bkArr
+}
 
 func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	if _, ok := t.mTree.Find(b.ParentId()); ok {
@@ -97,4 +121,8 @@ func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error)
 
 func (b BlockChainTree) GetLongestChain() *datastruct.Node {
 	return b.mTree.GetLongestChain()
+}
+
+func (b BlockChainTree) GetRoots() []*datastruct.Node{
+	return b.mTree.GetRoots()
 }
