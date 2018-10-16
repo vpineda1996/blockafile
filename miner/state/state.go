@@ -1,15 +1,27 @@
 package state
 
-// TODO implement state that holds the BlockChainStatus and FileSystemState
+import (
+	"log"
+	"os"
+)
 
 type State struct {
 	tm *TreeManager
 }
 
-func GetFileSystemState() {
-	// TODO get a node from tm and call new in the fs state
+type Config struct {
+	txFee Balance
+	reward Balance
+	numberOfZeros int
 }
 
-func GetBlockChainState()  {
-	// TODO get a node from tm and call new in the blockchain state
+var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
+
+
+func (s *State) GetFilesystemState() (FilesystemState, error) {
+	return NewFilesystemState(s.tm.GetLongestChain())
+}
+
+func (s *State) GetAccountState(txFee int, reward int) (AccountsState, error) {
+	return NewAccountsState(reward, txFee, s.tm.GetLongestChain())
 }

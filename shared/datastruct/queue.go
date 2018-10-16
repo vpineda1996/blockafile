@@ -6,35 +6,35 @@ type Queue struct{
 
 type QueueElement interface {}
 
-func (q *Queue) Enqueue(n QueueElement){
-	q.enqueue.Push(n)
+func (queue *Queue) Enqueue(n QueueElement){
+	queue.enqueue.Push(n)
 }
 
-func (q *Queue) Dequeue()(QueueElement, bool){
-	v, ok := q.dequeue.Pop()
+func (queue *Queue) Dequeue()(QueueElement, bool){
+	v, ok := queue.dequeue.Pop()
 	if ok{
 		return v, true
 	}
 
 	for {
-		v, ok := q.enqueue.Pop()
+		v, ok := queue.enqueue.Pop()
 		if !ok{
 			break
 		}
 
-		q.dequeue.Push(v)
+		queue.dequeue.Push(v)
 	}
 
-	return q.dequeue.Pop()
+	return queue.dequeue.Pop()
 }
 
-func (q *Queue) IsInQueue(eq func(QueueElement) bool) bool {
-	for _, v := range q.dequeue.v {
+func (queue *Queue) IsInQueue(eq func(QueueElement) bool) bool {
+	for _, v := range queue.dequeue.arr {
 		if eq(v) {
 			return true
 		}
 	}
-	for _, v := range q.enqueue.v {
+	for _, v := range queue.enqueue.arr {
 		if eq(v) {
 			return true
 		}
@@ -43,20 +43,21 @@ func (q *Queue) IsInQueue(eq func(QueueElement) bool) bool {
 }
 
 type Stack struct{
-	v []QueueElement
+	arr []QueueElement
 }
 
 func (s *Stack)Push(n QueueElement){
-	s.v=append(s.v, n)
+	s.arr = append(s.arr, n)
 }
 
 func (s *Stack) Pop()(QueueElement, bool){
-	if len(s.v) == 0 {
+	if len(s.arr) == 0 {
 		return nil, false
 	}
 
-	lastIdx := len(s.v)-1
-	v := s.v[lastIdx]
-	s.v=s.v[:lastIdx]
+	lastIdx := len(s.arr)-1
+	v := s.arr[lastIdx]
+	s.arr =s.arr[:lastIdx]
+
 	return v, true
 }

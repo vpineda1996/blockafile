@@ -111,7 +111,7 @@ func TestComplexTreeInserts(t *testing.T) {
 			// check if all of the nodes are on the tree
 			height := mtr.GetLongestChain().Height
 			for root := mtr.GetLongestChain(); root != nil; root = root.Next() {
-				if _, ok := mtr.Find(root.NodeId); !ok {
+				if _, ok := mtr.Find(root.Id); !ok {
 					t.Fail()
 				}
 				if height != root.Height {

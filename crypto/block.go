@@ -4,11 +4,12 @@ import (
 	"../shared/datastruct"
 	"bytes"
 	"crypto/md5"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/gob"
+	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"unsafe"
 )
 
@@ -22,7 +23,10 @@ const (
 )
 type BlockOp struct {
 	Type BlockOpType
+	// Miner id of the person that create the request
+	Creator string
 	Filename string
+	RecordNumber uint32
 	Data BlockOpData
 }
 
@@ -44,30 +48,71 @@ type Block struct {
 	Nonce uint32
 }
 
-func (b *Block) Hash() []byte {
-	// create a buffer to create a sum
+func (b *Block) serialize() []byte {
+	buf := &bytes.Buffer{}
+	buf.Write(b.PrevBlock[:])
+
+	intBuff := make([]byte, unsafe.Sizeof(uint32(1)))
+	for _, v := range b.Records {
+		buf.Write([]byte(v.Filename))
+		buf.Write(v.Data[:])
+		binary.LittleEndian.PutUint32(intBuff, v.RecordNumber)
+		buf.Write(intBuff)
+	}
+
+	buf.Write([]byte(b.MinerId))
+	binary.LittleEndian.PutUint32(intBuff, b.Nonce)
+	buf.Write(intBuff)
+	return buf.Bytes()
+}
+
+func (b *Block) hash(ser []byte) []byte {
 	switch b.Type {
 	case NoOpBlock, RegularBlock:
-		buf := &bytes.Buffer{}
-		buf.Write(b.PrevBlock[:])
-
-		for _, v := range b.Records {
-			buf.Write([]byte(v.Filename))
-			buf.Write(v.Data[:])
-		}
-
-		buf.Write([]byte(b.MinerId))
-
-		nonceEnc := make([]byte, unsafe.Sizeof(uint32(1)))
-		binary.LittleEndian.PutUint32(nonceEnc, b.Nonce)
-		buf.Write(nonceEnc)
-
-		sum := md5.Sum(buf.Bytes())
+		sum := md5.Sum(ser)
 		return sum[:]
 	case GenesisBlock:
 		return b.PrevBlock[:]
 	}
+
 	panic("cannot hash block")
+}
+
+func (b *Block) Hash() []byte {
+	return b.hash(b.serialize())
+}
+
+func (b *Block) valid(ser []byte, zeros int) bool {
+	hash := b.hash(ser)
+	for i := len(hash) - 1; i >= 0 && zeros > 0; zeros, i = zeros - 8, i - 1 {
+		mask := uint8(0xFF)
+		if zeros < 8 {
+			mask = mask >> uint(7 - zeros)
+		}
+		if hash[i] & mask != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func (b *Block) Valid(zeros int) bool {
+	return b.valid(b.serialize(), zeros)
+}
+
+func (b *Block) FindNonce(zeros int) {
+	start := uint32(rand.Int())
+	ser := b.serialize()
+
+	for !b.valid(ser, zeros) {
+		b.Nonce = start
+
+		intBuff := make([]byte, unsafe.Sizeof(uint32(1)))
+		binary.LittleEndian.PutUint32(intBuff, b.Nonce)
+		copy(ser[len(ser) - 4:], intBuff)
+
+		start += 1
+	}
 }
 
 
@@ -80,7 +125,7 @@ func (b BlockElement) Encode() []byte {
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(b.Block)
 	if err != nil {
-		log.Fatalf("Couldn't encode block: %v", b.Block)
+		log.Fatalf("Couldn't encode block: %v\n", b.Block)
 	}
 	return buf.Bytes()
 }
@@ -102,9 +147,9 @@ func (b BlockElement) New(r io.Reader) datastruct.Element {
 }
 
 func (b BlockElement) ParentId() string {
-	return base64.StdEncoding.EncodeToString(b.Block.PrevBlock[:])
+	return fmt.Sprintf("%x", b.Block.PrevBlock[:])
 }
 
 func (b BlockElement) Id() string {
-	return base64.StdEncoding.EncodeToString(b.Block.Hash())
+	return fmt.Sprintf("%x", b.Block.Hash())
 }

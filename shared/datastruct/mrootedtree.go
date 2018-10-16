@@ -33,10 +33,10 @@ func (EmptyElement) New(r io.Reader) Element {
 }
 
 type Node struct {
-	NodeId string
-	Height uint64
-	child *Node
-	Value Element
+	Id      string
+	Height  uint64
+	child   *Node
+	Value   Element
 	Parents []*Node
 }
 
@@ -77,28 +77,28 @@ func (t *MRootTree) PrependElement(e Element, head *Node) (*Node, error) {
 
 	if head != nil {
 		newNode = Node{
-			Value: e,
-			child: head,
-			Height: head.Height + 1,
-			NodeId: e.Id(),
+			Value:   e,
+			child:   head,
+			Height:  head.Height + 1,
+			Id:      e.Id(),
 			Parents: make([]*Node, 0, 1),
 		}
 		head.Parents = append(head.Parents, &newNode)
 	} else {
 		newNode = Node{
-			Value: e,
-			child: nil,
-			Height: 0,
-			NodeId: e.Id(),
+			Value:   e,
+			child:   nil,
+			Height:  0,
+			Id:      e.Id(),
 			Parents: make([]*Node, 0, 1),
 		}
 	}
 
 	// the node id is the same as the node hash which sometimes collides so we want to handle that case as well
-	if _, ok := t.nodes[newNode.NodeId]; ok {
-		return nil, errors.New("cannot add node to tree as there is another on the tree")
+	if _, ok := t.nodes[newNode.Id]; ok {
+		return nil, errors.New("cannot add node to tree as there is another node with the same hash")
 	} else {
-		t.nodes[newNode.NodeId] = &newNode
+		t.nodes[newNode.Id] = &newNode
 	}
 
 
@@ -108,7 +108,7 @@ func (t *MRootTree) PrependElement(e Element, head *Node) (*Node, error) {
 		delete(t.rootsFasS, head)
 		t.rootsFasS[&newNode] = idx
 	} else {
-		lg.Printf("Adding new root: %v", e)
+		lg.Printf("Adding new root: %v", e.Id())
 		t.roots = append(t.roots, &newNode)
 		t.rootsFasS[&newNode] = len(t.roots) - 1
 	}
