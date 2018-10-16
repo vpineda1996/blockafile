@@ -2,29 +2,44 @@ package api
 
 import (
 	"../../crypto"
-	"../state"
 	"errors"
+	"log"
+	"net"
+	"net/http"
+	"net/rpc"
 )
 
 
+type MinerServerListener interface {
+	AddBlock(b *crypto.Block)
+	AddJob(b *crypto.BlockOp)
+	GetNode(id string) (*crypto.Block, bool)
+	GetRoots() []*crypto.Block
+}
+
 type MinerServer struct {
-	state *state.State
+	state MinerServerListener
+}
+
+type GetNodeArgs struct {
+	Id string
+}
+
+type GetNodeRes struct {
+	Block crypto.Block
+	Found bool
+}
+
+func (m *MinerServer) GetNode(args *GetNodeArgs, res *GetNodeRes) error  {
+	bk, ok := m.state.GetNode(args.Id)
+	*res = GetNodeRes{
+		Block: *bk,
+		Found: ok,
+	}
+	return nil
 }
 
 type EmptyArgs struct {}
-
-type GetNodeArgs struct {
-	id string
-}
-
-func (m *MinerServer) GetNode(args *GetNodeArgs, res *crypto.Block) error  {
-	bk, ok := m.state.GetNode(args.id)
-	if !ok {
-		return errors.New("that node doesn't exist")
-	}
-	*res = *bk
-	return nil
-}
 
 func (m *MinerServer) GetRoots(e *EmptyArgs, res *[]*crypto.Block) error  {
 	bkArr := m.state.GetRoots()
@@ -34,4 +49,39 @@ func (m *MinerServer) GetRoots(e *EmptyArgs, res *[]*crypto.Block) error  {
 
 func (m *MinerServer) GetOtherHosts(e *EmptyArgs, res *[]string) error  {
 	return errors.New("not implemented")
+}
+
+
+type ReceiveNodeArgs struct {
+	Block crypto.Block
+}
+
+func (m *MinerServer) ReceiveNode(args *ReceiveNodeArgs, res *bool) error {
+	*res = true
+	m.state.AddBlock(&args.Block)
+	return nil
+}
+
+type ReceiveJobArgs struct {
+	BlockOp crypto.BlockOp
+}
+
+func (m *MinerServer) ReceiveJob(args *ReceiveJobArgs, res *bool) error {
+	*res = true
+	m.state.AddJob(&args.BlockOp)
+	return nil
+}
+
+func InitMinerServer(addr string, state MinerServerListener) error {
+	ms := new(MinerServer)
+	ms.state = state
+	rpc.Register(ms)
+	rpc.HandleHTTP()
+	l, e := net.Listen("tcp", addr)
+	if e != nil {
+		log.Fatal("listen error:", e)
+		return e
+	}
+	go http.Serve(l, nil)
+	return nil
 }
