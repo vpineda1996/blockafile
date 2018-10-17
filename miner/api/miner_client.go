@@ -88,7 +88,7 @@ func (m MinerClient) SendJob(block *crypto.BlockOp) {
 	m.client.Go("MinerServer.ReceiveJob", args, &ans, c)
 }
 
-func NewMinerCliet(addr string) (MinerClient, error) {
+func NewMinerClient(addr string) (MinerClient, error) {
 	c, err := rpc.DialHTTP("tcp", addr)
 	if err != nil {
 		return MinerClient{}, err

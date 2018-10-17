@@ -59,7 +59,7 @@ func (s MinerStateImpl) AddJob(b *crypto.BlockOp) {
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	cls := make([]*api.MinerClient, 0, len(connectedMiningNodes))
 	for _, c := range connectedMiningNodes {
-		conn, err := api.NewMinerCliet(c)
+		conn, err := api.NewMinerClient(c)
 		if err == nil {
 			cls = append(cls, &conn)
 		}
