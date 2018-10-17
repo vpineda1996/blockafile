@@ -17,22 +17,25 @@ type ClientHandler struct {
 }
 
 // The miner is always listening for client connections.
-func (c ClientHandler) ListenForClients() {
+func (c ClientHandler) ListenForClients() error {
 	defer c.waitGroup.Done()
 	addr, err := net.ResolveTCPAddr("tcp", c.ListenHost)
 	if err != nil {
 		lg.Printf("Error resolving TCP address: %v\n", err)
+		return err
 	}
 
 	listener, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		lg.Printf("Error listening for clients: %v\n", err)
+		return err
 	}
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			lg.Printf("Error accepting: %v\n", err)
+			continue
 		}
 
 		go c.ServiceClientRequest(conn)
@@ -40,7 +43,7 @@ func (c ClientHandler) ListenForClients() {
 }
 
 // Once a client connection has been accepted, the miner is always servicing requests from the client.
-func (c ClientHandler) ServiceClientRequest(conn net.Conn) {
+func (c ClientHandler) ServiceClientRequest(conn net.Conn) error {
 	minerInstance := c.miner
 	for {
 		// Make a buffer to hold incoming data.
@@ -53,7 +56,7 @@ func (c ClientHandler) ServiceClientRequest(conn net.Conn) {
 				// Client connection has been closed.
 				lg.Println("Closing client connection")
 				conn.Close()
-				return
+				return err
 			} else {
 				// Some other sort of error. Continue trying to read.
 				lg.Println(err)
@@ -74,8 +77,7 @@ func (c ClientHandler) ServiceClientRequest(conn net.Conn) {
 		// Direct the request to the proper handler and create response
 		var responseBuf bytes.Buffer
 		enc := gob.NewEncoder(&responseBuf)
-		// todo ksenia why -1? ill call it generic error, maybe we can be more specific?
-		minerResponse := shared.RFSMinerResponse{ErrorType: shared.GENERIC_ERROR}
+		minerResponse := shared.RFSMinerResponse{ErrorType: shared.NO_ERROR}
 
 		switch clientRequest.RequestType {
 		case shared.CREATE_FILE:
@@ -94,7 +96,6 @@ func (c ClientHandler) ServiceClientRequest(conn net.Conn) {
 			minerResponse.ReadRecord = readRec
 			minerResponse.ErrorType = readRecError
 		case shared.APPEND_REC:
-			// TODO
 			recordNum, appendRecError :=
 				(*minerInstance).AppendRecHandler(clientRequest.FileName, clientRequest.AppendRecord)
 			minerResponse.RecordNum = recordNum
@@ -108,7 +109,7 @@ func (c ClientHandler) ServiceClientRequest(conn net.Conn) {
 		err = enc.Encode(minerResponse)
 		if err != nil {
 			lg.Println(err)
-			return
+			return err
 		}
 		conn.Write(responseBuf.Bytes())
 	}

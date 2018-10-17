@@ -41,13 +41,6 @@ func (e DisconnectedError) Error() string {
 	return fmt.Sprintf("RFS: Disconnected from the miner [%s]", string(e))
 }
 
-// Contains recordNum that does not exist
-type RecordDoesNotExistError uint16
-
-func (e RecordDoesNotExistError) Error() string {
-	return fmt.Sprintf("RFS: Record with recordNum [%d] does not exist", e)
-}
-
 // Contains filename. The *only* constraint on filenames in RFS is
 // that must be at most 64 bytes long.
 type BadFilenameError string
@@ -349,10 +342,8 @@ func (rfs RFSInstance) generateResponseError(
 	clientRequest shared.RFSClientRequest,
 	minerResponse shared.RFSMinerResponse) (err error) {
 	err = nil
-	if minerResponse.ErrorType != -1 {
+	if minerResponse.ErrorType != shared.NO_ERROR {
 		switch minerResponse.ErrorType {
-		case shared.RECORD_DOES_NOT_EXIST:
-			err = RecordDoesNotExistError(clientRequest.RecordNum)
 		case shared.BAD_FILENAME:
 			err = BadFilenameError(clientRequest.FileName)
 		case shared.FILE_DOES_NOT_EXIST:
