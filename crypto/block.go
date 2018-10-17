@@ -101,10 +101,14 @@ func (b *Block) Valid(zeros int) bool {
 }
 
 func (b *Block) FindNonce(zeros int) {
+	b.FindNonceWithStopSignal(zeros, new(bool))
+}
+
+func (b *Block) FindNonceWithStopSignal(zeros int, stopSig *bool) {
 	start := uint32(rand.Int())
 	ser := b.serialize()
 
-	for !b.valid(ser, zeros) {
+	for !b.valid(ser, zeros) && !*stopSig {
 		b.Nonce = start
 
 		intBuff := make([]byte, unsafe.Sizeof(uint32(1)))

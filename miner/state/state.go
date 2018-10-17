@@ -36,6 +36,10 @@ func (s MinerStateImpl) GetNode(id string) (*crypto.Block, bool){
 	return s.tm.GetBlock(id)
 }
 
+func (t *TreeManager) GetHighestRoot() *crypto.Block {
+	return t.mTree.GetLongestChain().Value.(crypto.BlockElement).Block
+}
+
 func (s MinerStateImpl) GetRoots() []*crypto.Block {
 	return s.tm.GetRoots()
 }

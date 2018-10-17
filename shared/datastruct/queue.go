@@ -42,6 +42,10 @@ func (queue *Queue) IsInQueue(eq func(QueueElement) bool) bool {
 	return false
 }
 
+func (queue *Queue) Len() int {
+	return len(queue.enqueue.arr) + len(queue.dequeue.arr)
+}
+
 type Stack struct{
 	arr []QueueElement
 }
