@@ -372,3 +372,190 @@ func TestComplexFilesystemTree(t *testing.T) {
 		equals(t, datum[3][:], []byte(fs["c"].Data)[:])
 	})
 }
+
+func TestConfirmationTree(t *testing.T) {
+	AddNoOpBlock := func(tree *MRootTree) {
+		hd := tree.GetLongestChain()
+		prevBlk := [md5.Size]byte{}
+		copy(prevBlk[:], hd.Value.(crypto.BlockElement).Block.Hash())
+		ee := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: prevBlk,
+				Records: nil,
+				Nonce: 12324,
+			},
+		}
+		tree.PrependElement(ee, hd)
+	}
+	t.Run("high confirmsPerFileCreate/Append, nothing is stored in fsState", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 5, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				106, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 1, int(crypto.CreateFile), 0,
+				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile), 0,
+				108, 2, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				110, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile), 0,
+				111, 9, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile), 1,},
+		}
+		tree := buildFSTree(treeDef)
+		fsState, err := NewFilesystemState(25, 30, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+
+		equals(t, (*FileInfo)(nil), fs["a"])
+		equals(t, (*FileInfo)(nil), fs["b"])
+		equals(t, (*FileInfo)(nil), fs["c"])
+	})
+
+	t.Run("high confirmsPerFileAppend, low confirmsPerFileCreate, all creates stored eventually", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 5, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				106, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 1, int(crypto.CreateFile), 0,
+				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile), 0,
+				108, 2, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				110, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile), 0,
+				111, 9, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile), 1,},
+		}
+		tree := buildFSTree(treeDef)
+		fsState, err := NewFilesystemState(14, 20, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 2, len(fs))
+
+		equals(t, "1", fs["a"].Creator)
+		equals(t, "2", fs["b"].Creator)
+		equals(t, (*FileInfo)(nil), fs["c"])
+
+		equals(t, uint32(0), fs["a"].NumberOfRecords)
+		equals(t, uint32(0), fs["b"].NumberOfRecords)
+
+		// Add one more node
+		AddNoOpBlock(tree)
+		fsState, err = NewFilesystemState(14, 20, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs = fsState.GetAll()
+		equals(t, 3, len(fs))
+		equals(t, "1", fs["c"].Creator)
+		equals(t, uint32(0), fs["c"].NumberOfRecords)
+		equals(t, make([]byte, 0, crypto.DataBlockSize), []byte(fs["c"].Data))
+	})
+
+	t.Run("low confirmsPerFileCreate/Append, all ops stored eventually", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 5, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				106, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 1, int(crypto.CreateFile), 0,
+				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile), 0,
+				108, 2, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				110, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile), 0,
+				111, 9, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile), 1,},
+		}
+		tree := buildFSTree(treeDef)
+		fsState, err := NewFilesystemState(6, 11, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 3, len(fs))
+
+		equals(t, "1", fs["a"].Creator)
+		equals(t, "2", fs["b"].Creator)
+		equals(t, "1", fs["c"].Creator)
+
+		equals(t, uint32(0), fs["a"].NumberOfRecords)
+		equals(t, uint32(0), fs["b"].NumberOfRecords)
+		equals(t, uint32(0), fs["c"].NumberOfRecords)
+
+		equals(t, make([]byte, 0, crypto.DataBlockSize), []byte(fs["c"].Data))
+
+		// Add one more node
+		AddNoOpBlock(tree)
+		fsState, err = NewFilesystemState(6, 11, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs = fsState.GetAll()
+		equals(t, uint32(1), fs["c"].NumberOfRecords)
+		equals(t, datum[0][:], []byte(fs["c"].Data)[:crypto.DataBlockSize])
+
+		// Add ten more nodes
+		for i := 0; i < 10; i++ {
+			AddNoOpBlock(tree)
+		}
+		fsState, err = NewFilesystemState(6, 11, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs = fsState.GetAll()
+		equals(t, uint32(2), fs["c"].NumberOfRecords)
+		equals(t, datum[1][:], []byte(fs["c"].Data)[crypto.DataBlockSize:])
+	})
+
+	t.Run("recreate fsState with different settings for confirmsPerFileCreate/Append", func (t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 5, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				106, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 1, int(crypto.CreateFile), 0,
+				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile), 0,
+				108, 2, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				110, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile), 0,
+				111, 9, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0,
+				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile), 1,},
+		}
+		tree := buildFSTree(treeDef)
+		fsState, err := NewFilesystemState(25, 30, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+
+		equals(t, (*FileInfo)(nil), fs["a"])
+		equals(t, (*FileInfo)(nil), fs["b"])
+		equals(t, (*FileInfo)(nil), fs["c"])
+
+		fsState, err = NewFilesystemState(5, 10, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs = fsState.GetAll()
+		equals(t, 3, len(fs))
+
+		equals(t, "1", fs["a"].Creator)
+		equals(t, "2", fs["b"].Creator)
+		equals(t, "1", fs["c"].Creator)
+	})
+}

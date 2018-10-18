@@ -110,7 +110,7 @@ func evaluateFSBlockOps(
 	for _, tx := range bcs {
 		switch tx.Type {
 		case crypto.CreateFile:
-			if appendOpsConfirmed {
+			if createOpsConfirmed {
 				lg.Printf("Creating file %v", tx.Filename)
 				if _, exists := fs[Filename(tx.Filename)]; exists {
 					return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
@@ -123,18 +123,18 @@ func evaluateFSBlockOps(
 				fs[Filename(tx.Filename)] = &fi
 			}
 		case crypto.AppendFile:
-			lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
-			if f, exists := fs[Filename(tx.Filename)]; exists {
-				if appendOpsConfirmed {
+			if appendOpsConfirmed {
+				lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
+				if f, exists := fs[Filename(tx.Filename)]; exists {
 					if tx.RecordNumber != f.NumberOfRecords {
 						return errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
 							" to file " + tx.Filename + " duplicated in chain, failing")
 					}
 					f.NumberOfRecords += 1
 					f.Data = append(f.Data, FileData(tx.Data[:])...)
+				} else {
+					return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
 				}
-			} else {
-				return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
 			}
 		default:
 			return errors.New("vous les hommes êtes tous les mêmes, Macho mais cheap, Bande de mauviettes infidèles")
