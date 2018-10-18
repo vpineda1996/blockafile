@@ -78,10 +78,6 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 
 // TODO EC3 delete, do something here
 func (bcv *BlockChainValidator) validateNewFSState(b crypto.BlockElement) (map[Filename]*FileInfo, error) {
-	// TODO hi victor. I'm not really sure what I am supposed to add here in terms of confirmation validation
-	// sorry if this is dumb
-	// I am also unsure about whether or not it is okay that we are performing validation on only the subset
-	// of the longest chain that has already been confirmed
 	res := make(map[Filename]*FileInfo)
 	bcs := b.Block.Records
 	fs := bcv.lastFilesystemState.GetAll()
