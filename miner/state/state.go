@@ -8,7 +8,7 @@ import (
 )
 
 type MinerState interface {
-	GetFilesystemState() (FilesystemState, error)
+	GetFilesystemState(confirmsPerFileCreate int, confirmsPerFileAppend int) (FilesystemState, error)
 	GetNode(id string) (*crypto.Block, bool)
 	GetRoots() []*crypto.Block
 	GetAccountState(txFee int, reward int) (AccountsState, error)
