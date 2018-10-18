@@ -2,6 +2,7 @@ package state
 
 import (
 	"../../crypto"
+	"../../shared"
 	"crypto/md5"
 	"log"
 	"strconv"
@@ -76,8 +77,10 @@ const numberOfZeros = 8
 func TestSimpleTreeManager(t *testing.T) {
 	t.Run("init works", func(t *testing.T) {
 		NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 	})
@@ -89,8 +92,10 @@ func TestSimpleTreeManager(t *testing.T) {
 			addOrder: []int{},
 		}
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -99,7 +104,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		bkState, _ := NewAccountsState(blockReward, txFee, tree.GetLongestChain())
+		bkState, _ := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
 		equals(t, 0, len(bkState.GetAll()))
 	})
 
@@ -112,8 +117,10 @@ func TestSimpleTreeManager(t *testing.T) {
 				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
 		}
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -139,8 +146,10 @@ func TestSimpleTreeManager(t *testing.T) {
 				0, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
 		}
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -166,8 +175,10 @@ func TestSimpleTreeManager(t *testing.T) {
 				0, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 0, int(crypto.CreateFile), 0},
 		}
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -187,8 +198,10 @@ func TestSimpleTreeManager(t *testing.T) {
 				3, 1, 2, int(crypto.RegularBlock), 2, 1, 0, 0, int(crypto.AppendFile), 0},
 		}
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -208,8 +221,10 @@ func TestSimpleTreeManager(t *testing.T) {
 				101, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0},
 		}
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -239,8 +254,10 @@ func TestSimpleTreeManager(t *testing.T) {
 				101, 1, 1, int(crypto.RegularBlock), 5, 1, 0, 0, int(crypto.AppendFile), 0},
 		}
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -277,8 +294,10 @@ func TestValidTnxTreeManager(t *testing.T) {
 		}
 
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -316,8 +335,10 @@ func TestValidTnxTreeManager(t *testing.T) {
 				120, 1, 2, int(crypto.RegularBlock), 1, 1, 1, 2, int(crypto.AppendFile), 1,},
 		}
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -361,8 +382,10 @@ func TestValidTnxTreeManager(t *testing.T) {
 		}
 
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -406,8 +429,10 @@ func TestValidTnxTreeManager(t *testing.T) {
 		}
 
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)
@@ -443,8 +468,10 @@ func TestValidTnxTreeManager(t *testing.T) {
 		}
 
 		tree := NewTreeManager(Config{
-			txFee: 1,
-			reward: 1,
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		})
 		err := buildTreeWithManager(treeDef, tree)

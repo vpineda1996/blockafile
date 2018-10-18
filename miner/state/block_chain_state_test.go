@@ -2,6 +2,7 @@ package state
 
 import (
 	"../../crypto"
+	"../../shared"
 	"crypto/md5"
 	"fmt"
 	"math/rand"
@@ -22,8 +23,10 @@ type treeBuilderTest struct {
 }
 
 var genBlockSeed = [md5.Size]byte{10, 2,1 }
-var blockReward = 1
-var txFee = 1
+var opReward = 1
+var noOpReward = 1
+var appendFee = shared.NUM_COINS_PER_FILE_APPEND
+var createFee = 1
 
 var counter byte = 0
 
@@ -87,7 +90,7 @@ func buildTree(treeDef treeBuilderTest) *MRootTree {
 func TestSimpleBlockChainTree(t *testing.T) {
 	t.Run("returns empty state on empty tree", func(t *testing.T) {
 		tree := NewMRootTree()
-		bkState, _ := NewAccountsState(blockReward, txFee, tree.GetLongestChain())
+		bkState, _ := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
 		equals(t, 0, len(bkState.GetAll()))
 	})
 
@@ -99,7 +102,7 @@ func TestSimpleBlockChainTree(t *testing.T) {
 		}
 		tree := buildTree(treeDef)
 
-		bkState, _ := NewAccountsState(blockReward, txFee, tree.GetLongestChain())
+		bkState, _ := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
 		equals(t, 0, len(bkState.GetAll()))
 	})
 
@@ -111,7 +114,7 @@ func TestSimpleBlockChainTree(t *testing.T) {
 				0, 1, 1, int(crypto.NoOpBlock), 0, 1},
 		}
 		tree := buildTree(treeDef)
-		bkState, _ := NewAccountsState(blockReward, txFee, tree.GetLongestChain())
+		bkState, _ := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
 		mp := make(map[Account]Balance)
 		mp[Account(strconv.Itoa(1))] = 1
 		equals(t, mp, bkState.GetAll())
@@ -126,7 +129,7 @@ func TestSimpleBlockChainTree(t *testing.T) {
 				1, 1, 2, int(crypto.RegularBlock), 1, 1},
 		}
 		tree := buildTree(treeDef)
-		bkState, err := NewAccountsState(blockReward, txFee, tree.GetLongestChain())
+		bkState, err := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
 		if err != nil {
 			t.Fatal(err)
 			t.Fail()
@@ -150,7 +153,7 @@ func TestComplexBlockChainTree(t *testing.T) {
 				101, 3, 3, int(crypto.NoOpBlock), 0, 1},
 		}
 		tree := buildTree(treeDef)
-		bkState, err := NewAccountsState(blockReward, txFee, tree.GetLongestChain())
+		bkState, err := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
 		if err != nil {
 			t.Fatal(err)
 			t.Fail()
@@ -179,7 +182,7 @@ func TestComplexBlockChainTree(t *testing.T) {
 				105, 30, 2, int(crypto.NoOpBlock), 0, 1},   // id: 106
 		}
 		tree := buildTree(treeDef)
-		bkState, err := NewAccountsState(blockReward, txFee, tree.GetLongestChain())
+		bkState, err := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
 		if err != nil {
 			t.Fatal(err)
 			t.Fail()
@@ -212,7 +215,7 @@ func TestComplexBlockChainTree(t *testing.T) {
 				235, 6, 4, int(crypto.NoOpBlock), 0, 1,},  // id: 241
 		}
 		tree := buildTree(treeDef)
-		bkState, err := NewAccountsState(blockReward, txFee, tree.GetLongestChain())
+		bkState, err := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
 		if err != nil {
 			t.Fatal(err)
 			t.Fail()
