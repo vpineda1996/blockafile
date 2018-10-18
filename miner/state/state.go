@@ -8,7 +8,7 @@ import (
 )
 
 type MinerState interface {
-	GetFilesystemState() (FilesystemState, error)
+	GetFilesystemState(confirmsPerFileCreate int, confirmsPerFileAppend int) (FilesystemState, error)
 	GetNode(id string) (*crypto.Block, bool)
 	GetRoots() []*crypto.Block
 	GetAccountState(appendFee int, createFee int, opReward int, noOpReward int) (AccountsState, error)
@@ -26,12 +26,16 @@ type Config struct {
 	noOpReward Balance
 	numberOfZeros int
 	address string
+	confirmsPerFileCreate int
+	confirmsPerFileAppend int
 }
 
 var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
 
-func (s MinerStateImpl) GetFilesystemState() (FilesystemState, error) {
-	return NewFilesystemState(s.tm.GetLongestChain())
+func (s MinerStateImpl) GetFilesystemState(
+	confirmsPerFileCreate int,
+	confirmsPerFileAppend int) (FilesystemState, error) {
+	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, s.tm.GetLongestChain())
 }
 
 func (s MinerStateImpl) GetNode(id string) (*crypto.Block, bool){

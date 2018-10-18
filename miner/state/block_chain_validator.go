@@ -53,7 +53,7 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 		if err != nil {
 			return nil, err
 		}
-		fss, err := NewFilesystemState(root)
+		fss, err := NewFilesystemState(bcv.cnf.confirmsPerFileCreate, bcv.cnf.confirmsPerFileAppend, root)
 		if err != nil {
 			return nil, err
 		}
