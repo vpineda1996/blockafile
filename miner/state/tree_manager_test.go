@@ -122,7 +122,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -149,7 +149,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -218,7 +218,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			log.Println(err)
 			t.Fail()
@@ -249,7 +249,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			log.Println(err)
 			t.Fail()
@@ -287,7 +287,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -326,7 +326,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -371,7 +371,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -453,7 +453,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}

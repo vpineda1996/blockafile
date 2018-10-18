@@ -48,7 +48,7 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 		if err != nil {
 			return nil, err
 		}
-		fss, err := NewFilesystemState(root)
+		fss, err := NewFilesystemState(bcv.cnf.confirmsPerFileCreate, bcv.cnf.confirmsPerFileAppend, root)
 		if err != nil {
 			return nil, err
 		}
@@ -78,6 +78,7 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 
 // TODO EC3 delete, do something here
 func (bcv *BlockChainValidator) validateNewFSState(b crypto.BlockElement) (map[Filename]*FileInfo, error) {
+	// TODO ksenia
 	res := make(map[Filename]*FileInfo)
 	bcs := b.Block.Records
 	fs := bcv.lastFilesystemState.GetAll()

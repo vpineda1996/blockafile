@@ -87,7 +87,7 @@ func buildFSTree(treeDef treeBuilderTest) *MRootTree {
 func TestSimpleFilesystemTree(t *testing.T) {
 	t.Run("returns empty state on empty tree", func(t *testing.T) {
 		tree := NewMRootTree()
-		fsState, _ := NewFilesystemState(tree.GetLongestChain())
+		fsState, _ := NewFilesystemState(0, 0, tree.GetLongestChain())
 		equals(t, 0, len(fsState.GetAll()))
 	})
 
@@ -99,7 +99,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 		}
 		tree := buildTree(treeDef)
 
-		fsState, _ := NewFilesystemState(tree.GetLongestChain())
+		fsState, _ := NewFilesystemState(0, 0, tree.GetLongestChain())
 		equals(t, 0, len(fsState.GetAll()))
 	})
 
@@ -111,7 +111,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 				0, 1, 1, int(crypto.NoOpBlock), 0, 1},
 		}
 		tree := buildTree(treeDef)
-		fsState, _ := NewFilesystemState(tree.GetLongestChain())
+		fsState, _ := NewFilesystemState(0, 0, tree.GetLongestChain())
 		mp := make(map[Filename]*FileInfo)
 		equals(t, mp, fsState.GetAll())
 	})
@@ -125,7 +125,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 				100, 5, 1, int(crypto.RegularBlock), 1, 1},
 		}
 		tree := buildTree(treeDef)
-		fsState, _ := NewFilesystemState(tree.GetLongestChain())
+		fsState, _ := NewFilesystemState(0, 0, tree.GetLongestChain())
 		equals(t, 5, len(fsState.GetAll()))
 	})
 
@@ -141,7 +141,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 				100, 1, 1, int(crypto.GenesisBlock), 1, 1},
 		}
 		tree := buildTree(treeDef)
-		NewFilesystemState(tree.GetLongestChain())
+		NewFilesystemState(0, 0, tree.GetLongestChain())
 		t.Fail()
 	})
 
@@ -154,7 +154,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
 		}
 		tree := buildFSTree(treeDef)
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -173,7 +173,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 				101, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0},
 		}
 		tree := buildFSTree(treeDef)
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			log.Println(err)
 			t.Fail()
@@ -193,7 +193,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 				100, 2, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
 		}
 		tree := buildFSTree(treeDef)
-		_, err := NewFilesystemState(tree.GetLongestChain())
+		_, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err == nil {
 			t.Fail()
 		}
@@ -208,7 +208,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 				100, 2, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0},
 		}
 		tree := buildFSTree(treeDef)
-		_, err := NewFilesystemState(tree.GetLongestChain())
+		_, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err == nil {
 			t.Fail()
 		}
@@ -229,7 +229,7 @@ func TestComplexFilesystemTree(t *testing.T) {
 				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile), 0,},
 		}
 		tree := buildFSTree(treeDef)
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -258,7 +258,7 @@ func TestComplexFilesystemTree(t *testing.T) {
 				120, 1, 2, int(crypto.RegularBlock), 1, 1, 1, 2, int(crypto.AppendFile), 1,},
 		}
 		tree := buildFSTree(treeDef)
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -292,7 +292,7 @@ func TestComplexFilesystemTree(t *testing.T) {
 				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile), 1,},
 		}
 		tree := buildFSTree(treeDef)
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -326,7 +326,7 @@ func TestComplexFilesystemTree(t *testing.T) {
 				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile), 0,},
 		}
 		tree := buildFSTree(treeDef)
-		_, err := NewFilesystemState(tree.GetLongestChain())
+		_, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err == nil {
 			t.Fail()
 		}
@@ -357,7 +357,7 @@ func TestComplexFilesystemTree(t *testing.T) {
 				},
 		}
 		tree := buildFSTree(treeDef)
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
