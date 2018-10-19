@@ -11,7 +11,7 @@ type MinerState interface {
 	GetBlock(id string) (*crypto.Block, bool)
 	GetFilesystemState(confirmsPerFileCreate int, confirmsPerFileAppend int) (FilesystemState, error)
 	GetRoots() []*crypto.Block
-	GetAccountState(txFee int, reward int) (AccountsState, error)
+	GetAccountState(appendFee int, createFee int, opReward int, noOpReward int) (AccountsState, error)
 }
 
 type MinerStateImpl struct {
@@ -20,8 +20,10 @@ type MinerStateImpl struct {
 }
 
 type Config struct {
-	txFee Balance
-	reward Balance
+	appendFee Balance // Note that this is not user-configured. Always exactly 1 coin.
+	createFee Balance
+	opReward Balance
+	noOpReward Balance
 	numberOfZeros int
 	address string
 	confirmsPerFileCreate int
@@ -48,8 +50,12 @@ func (s MinerStateImpl) GetRoots() []*crypto.Block {
 	return s.tm.GetRoots()
 }
 
-func (s MinerStateImpl) GetAccountState(txFee int, reward int) (AccountsState, error) {
-	return NewAccountsState(reward, txFee, s.tm.GetLongestChain())
+func (s MinerStateImpl) GetAccountState(
+	appendFee int,
+	createFee int,
+	opReward int,
+	noOpReward int) (AccountsState, error) {
+	return NewAccountsState(appendFee, createFee, opReward, noOpReward, s.tm.GetLongestChain())
 }
 
 func (s MinerStateImpl) GetRemoteBlock(id string) (*crypto.Block, bool) {
