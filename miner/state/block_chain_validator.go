@@ -44,7 +44,12 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 
 	// generate history if need be
 	if bcv.generatingNodeId != root.Id {
-		bcas, err := NewAccountsState(int(bcv.cnf.reward), int(bcv.cnf.txFee), root)
+		bcas, err := NewAccountsState(
+			int(bcv.cnf.appendFee),
+			int(bcv.cnf.createFee),
+			int(bcv.cnf.opReward),
+			int(bcv.cnf.noOpReward),
+			root)
 		if err != nil {
 			return nil, err
 		}
@@ -137,22 +142,40 @@ func (bcv *BlockChainValidator) validateNewAccountState(b crypto.BlockElement) (
 	res := make(map[Account]Balance)
 	bcs := b.Block.Records
 	accs := bcv.lastStateAccount
-	award(res, Account(b.Block.MinerId), bcv.cnf.reward)
+
+	// Award miner
+	switch b.Block.Type {
+	case crypto.NoOpBlock:
+		award(res, Account(b.Block.MinerId), bcv.cnf.noOpReward)
+	case crypto.RegularBlock:
+		award(res, Account(b.Block.MinerId), bcv.cnf.opReward)
+	default:
+		return nil, errors.New("not a valid block type")
+	}
+
 	for _, tx := range bcs {
 		act := Account(tx.Creator)
+		var txFee Balance
 		switch tx.Type {
-		case crypto.CreateFile, crypto.AppendFile:
-			if _, ok := res[act]; !ok {
-				res[act] = 0
-			}
-			if b := accs.GetAccountBalance(act) + res[act]; b < bcv.cnf.txFee {
-				return nil, errors.New("balance for account " + string(act) + " is not enough, it has " + fmt.Sprintf("%v", b) +
-					" but it needs " + fmt.Sprintf("%v", bcv.cnf.txFee))
-			}
-			res[act] -= bcv.cnf.txFee
+		case crypto.CreateFile:
+			txFee = bcv.cnf.createFee
+		case crypto.AppendFile:
+			txFee = bcv.cnf.appendFee
 		default:
 			return nil, errors.New("not a valid file op")
 		}
+
+		// Verify miner has enough balance to perform transaction
+		if _, ok := res[act]; !ok {
+			res[act] = 0
+		}
+		if b := accs.GetAccountBalance(act) + res[act]; b < txFee {
+			return nil, errors.New("balance for account " + string(act) + " is not enough, it has " + fmt.Sprintf("%v", b) +
+				" but it needs " + fmt.Sprintf("%v", txFee))
+		}
+
+		// Apply fee to the account
+		res[act] -= txFee
 	}
 	return res, nil
 }
