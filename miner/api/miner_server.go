@@ -30,7 +30,7 @@ type GetNodeRes struct {
 	Found bool
 }
 
-func (m *MinerServer) GetNode(args *GetNodeArgs, res *GetNodeRes) error  {
+func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error  {
 	bk, ok := m.state.GetBlock(args.Id)
 	*res = GetNodeRes{
 		Block: *bk,

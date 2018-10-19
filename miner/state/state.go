@@ -45,11 +45,41 @@ func (s MinerStateImpl) GetAccountState(txFee int, reward int) (AccountsState, e
 }
 
 func (s MinerStateImpl) GetRemoteBlock(id string) (*crypto.Block, bool) {
-	panic("implement me")
+	for _, c := range s.clients {
+		nd, ok, err := c.GetBlock(id)
+		if err != nil {
+			// todo vpineda prob remove that host from the host list
+			lg.Printf("error in connection node %v\n", err)
+			continue
+		}
+		if ok && nd.Id() == id {
+			return nd, true
+		}
+	}
+	return nil, false
 }
 
 func (s MinerStateImpl) GetRemoteRoots() ([]*crypto.Block) {
-	panic("implement me")
+	blocks := make(map[string]*crypto.Block)
+	for _, c := range s.clients {
+		arr, err := c.GetRoots()
+		if err != nil {
+			// todo vpineda prob remove that host from the host list
+			lg.Printf("error in connection node %v\n", err)
+			continue
+		}
+		for _, h := range arr {
+			blocks[h.Id()] = h
+		}
+	}
+
+	blockArr := make([]*crypto.Block, len(blocks))
+	i := 0
+	for _, v := range blocks {
+		blockArr[i] = v
+		i += 1
+	}
+	return blockArr
 }
 
 func (s MinerStateImpl) AddBlock(b *crypto.Block) {

@@ -33,6 +33,9 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 	}
 
 	if b.Block.Type == crypto.GenesisBlock {
+		if len(bcv.mTree.GetRoots()) > 0 {
+			return nil, errors.New("cannot add more than one genesis block")
+		}
 		return nil, nil
 	}
 

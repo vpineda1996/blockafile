@@ -3,9 +3,13 @@ package state
 import (
 	"../../crypto"
 	"crypto/md5"
+	"fmt"
 	"log"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
+	"time"
 )
 
 // add order : node where we insert first | the number of nodes we insert
@@ -484,7 +488,384 @@ func TestValidTnxTreeManager(t *testing.T) {
 
 }
 
-func TestBlockRetrieval(t *testing.T) {
-
+type tNodeRetrievier struct {
+	counterRB *int
+	counterRR *int
+	block *crypto.Block
+	block2 *crypto.Block
 }
 
+func (t tNodeRetrievier) GetRemoteBlock(id string) (*crypto.Block, bool) {
+	*t.counterRB += 1
+	if fmt.Sprintf("%x", t.block.Hash()) == id {
+		return t.block, true
+	}
+	if t.block2 != nil && fmt.Sprintf("%x", t.block2.Hash()) == id  {
+		return t.block2, true
+	}
+	return nil, false
+}
+
+func (t tNodeRetrievier) GetRemoteRoots() ([]*crypto.Block) {
+	*t.counterRR += 1
+	ee := crypto.BlockElement{
+		Block: &crypto.Block {
+			MinerId: strconv.Itoa(1),
+			Type: crypto.GenesisBlock,
+			PrevBlock: genBlockSeed,
+			Records: []*crypto.BlockOp{},
+			Nonce: 12324,
+		},
+	}
+	return []*crypto.Block{ee.Block}
+}
+
+var cGenBlockSeed = [md5.Size]byte{10, 2,1, 5}
+
+func TestBlockRetrieval(t *testing.T) {
+	t.Run("it gets the parent block", func(t *testing.T) {
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: genBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+
+		parent.Block.FindNonce(numberOfZeros)
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetrievier{
+			block: parent.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			txFee: 1,
+			reward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		equals(t, 1, *tNodeRetrivStruct.counterRB)
+
+		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 1, len(fs))
+		equals(t, "1", fs["potato"].Creator)
+	})
+
+	t.Run("discards block if parent is garbage", func(t *testing.T) {
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: genBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetrievier{
+			block: parent.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			txFee: 1,
+			reward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		equals(t, 1, *tNodeRetrivStruct.counterRB)
+
+		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+	})
+
+	t.Run("corrupt seed on node", func(t *testing.T) {
+
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: cGenBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+		parent.Block.FindNonce(numberOfZeros)
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetrievier{
+			block: parent.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			txFee: 1,
+			reward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+	})
+
+	t.Run("long chain works", func(t *testing.T) {
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: genBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+
+		parent.Block.FindNonce(numberOfZeros)
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+
+		head.Block.FindNonce(numberOfZeros)
+		head2Parent := [md5.Size]byte{}
+		copy(head2Parent[:], head.Block.Hash())
+
+		head2 := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: head2Parent,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato2",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head2.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetrievier{
+			block: parent.Block,
+			block2: head.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			txFee: 1,
+			reward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head2)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		equals(t, 2, *tNodeRetrivStruct.counterRB)
+
+		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 2, len(fs))
+		equals(t, "1", fs["potato"].Creator)
+	})
+
+	t.Run("fails gracefully with long chain", func(t *testing.T) {
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: cGenBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+
+		parent.Block.FindNonce(numberOfZeros)
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+
+		head.Block.FindNonce(numberOfZeros)
+		head2Parent := [md5.Size]byte{}
+		copy(head2Parent[:], head.Block.Hash())
+
+		head2 := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: head2Parent,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato2",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head2.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetrievier{
+			block: parent.Block,
+			block2: head.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			txFee: 1,
+			reward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head2)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		equals(t, 3, *tNodeRetrivStruct.counterRB)
+
+		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+	})
+}
+
+
+// ok fails the test if an err is not nil.
+func ok(tb testing.TB, err error) {
+	if err != nil {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%str:%d: unexpected error: %str\033[39m\n\n", filepath.Base(file), line, err.Error())
+		tb.FailNow()
+	}
+}

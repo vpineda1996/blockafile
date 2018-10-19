@@ -39,7 +39,7 @@ func NewAccountsState(blockReward int, txFee int, nd *datastruct.Node) (Accounts
 			accounts: make(map[Account]Balance),
 		}, nil
 	}
-	lg.Printf("Creating new blockchain state with %v reward and %v as top", blockReward, nd.Id)
+	lg.Printf("Creating new account state with %v reward and %v as top", blockReward, nd.Id)
 	nds := transverseChain(nd)
 	st, err := generateState(Balance(blockReward), Balance(txFee), nds)
 	if err != nil {
@@ -133,5 +133,4 @@ func award(accs map[Account]Balance, act Account, rw Balance) {
 	} else {
 		accs[act] = rw
 	}
-	lg.Printf("Account %v got awarded %v, balance: %v", act, rw, accs[act])
 }

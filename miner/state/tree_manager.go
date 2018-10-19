@@ -9,6 +9,7 @@ import (
 
 
 type BlockRetriever interface {
+	// gets remote block and validates that the id that was given is equal to the cryptoblock
 	GetRemoteBlock(id string) (*crypto.Block, bool)
 	GetRemoteRoots() ([]*crypto.Block)
 }
@@ -62,6 +63,7 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	}
 	if b.Block.Type == crypto.GenesisBlock {
 		// second case, its the genesis case
+
 		_, err := t.mTree.Add(b)
 		if err != nil {
 			return err
@@ -81,6 +83,7 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 
 	// harder case.. we don't know where this block came from,
 	// queue it and defer it to a another place
+	lg.Printf("Enqueuing block %v\n", b.Id())
 	t.findBlockQueue.Enqueue(b)
 	select {
 	case t.findBlockNotify <- true:
@@ -93,27 +96,30 @@ func (t *TreeManager) GetLongestChain() *datastruct.Node {
 	return t.mTree.GetLongestChain()
 }
 
-// TODO vpineda create 2 go routines
-// TODO 1 go routine for the the queue that will call  // flood rpc endpoints to ask for nodes
-// TODO 1 go routine to every now and then sync roots with other peers
 
 func blockAdderHelper(t* TreeManager, b crypto.BlockElement) bool {
+	// the block is a genesis block no need to check children add it directly
+	if b.Block.Type == crypto.GenesisBlock {
+		t.AddBlock(b)
+		return true
+	}
+
 	// parent block is in the tree, add it
 	if _, ok := t.mTree.Find(b.ParentId()); ok {
-		if _, ok := t.mTree.Find(b.Id()); ok {
-
+		if _, ok := t.mTree.Find(b.Id()); !ok {
+			t.AddBlock(b)
 		}
-		t.AddBlock(b)
 		return true
 	}
 
 	// parent block is in the queue, enqueue
 	eqParIdFn := func(e datastruct.QueueElement) bool {
 		bl := e.(crypto.BlockElement)
-		return bl.ParentId() == b.ParentId()
+		return bl.Id() == b.ParentId()
 	}
 
 	if t.findBlockQueue.IsInQueue(eqParIdFn) {
+		lg.Printf("Found parent %v, in queue. Queuing block %v", b.ParentId(), b.Id())
 		t.AddBlock(b)
 		return true
 	}
@@ -122,15 +128,36 @@ func blockAdderHelper(t* TreeManager, b crypto.BlockElement) bool {
 	block, ok := t.br.GetRemoteBlock(b.ParentId())
 	if !ok {
 		lg.Printf("Discarding block %v since no node knows about its parent", b.Id())
+		removeNodesStartingFrom(b, t.findBlockQueue)
 		return false
 	} else {
 		// we found the parent block!, add the parent to the queue and then the child
-		t.AddBlock(crypto.BlockElement{
+		err := t.AddBlock(crypto.BlockElement{
 			Block: block,
 		})
-		t.AddBlock(b)
-		return true
+		if err == nil {
+			t.AddBlock(b)
+			return true
+		} else {
+			// remove all of the nodes that had b as parent
+			return removeNodesStartingFrom(b, t.findBlockQueue)
+		}
 	}
+}
+
+func removeNodesStartingFrom(block crypto.BlockElement, q *datastruct.Queue) bool {
+	parentId := block.Id()
+	fDeleteSearch := func(e datastruct.QueueElement) bool {
+		bl := e.(crypto.BlockElement)
+		if bl.ParentId() == parentId {
+			parentId = bl.Id()
+			lg.Printf("Deleting block %v because is on an illegal chain of %v", bl.Id(), block.Id())
+			return true
+		}
+		return false
+	}
+	for q.Del(fDeleteSearch) {}
+	return false
 }
 
 func FindNodeThread(t *TreeManager) {
