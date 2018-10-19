@@ -37,6 +37,15 @@ func (pq *PriorityQueue) Push(x interface{}) {
 	*pq = append(*pq, item)
 }
 
+// returns int of where an element is
+func (pq *PriorityQueue) Find(eq func(interface{}) bool) int {
+	for _, itm := range *pq {
+		if eq(itm.value) {
+			return itm.index
+		}
+	}
+	return -1
+}
 func (pq *PriorityQueue) Pop() interface{} {
 	old := *pq
 	n := len(old)

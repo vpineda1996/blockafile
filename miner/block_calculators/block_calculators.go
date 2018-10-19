@@ -2,8 +2,11 @@ package block_calculators
 
 import (
 	"../../crypto"
+	"../../shared/datastruct"
 	"bytes"
+	"container/heap"
 	"crypto/md5"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -14,20 +17,36 @@ type BlockCalculatorListener interface {
 	GetHighestRoot() *crypto.Block
 	GetTargetZeros() int
 	GetMinerId() string
-	ValidateBlock(b *crypto.Block) bool
+	ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp
 }
 
 type BlockCalculator struct {
 	listener        BlockCalculatorListener
-	jobSet          *[]*crypto.BlockOp
+	jobSet          *datastruct.PriorityQueue
 	noopSuspended   bool
 	shutdownThreads bool
 	mtx             *sync.Mutex
 	opsPerBlock     int
 }
 
-func (bc *BlockCalculator) AddJob(b *crypto.BlockOp) {
-	panic("implement me")
+func (bc *BlockCalculator) AddJob(b crypto.BlockOp) {
+	bc.noopSuspended = true
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+	heap.Push(bc.jobSet, b)
+}
+
+
+func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+	for _, rc := range block.Records {
+		hpIdx := bc.jobSet.Find(func(j interface{}) bool {
+			job := j.(crypto.BlockOp)
+			return reflect.DeepEqual(job, *rc)
+		})
+		heap.Remove(bc.jobSet, hpIdx)
+	}
 }
 
 func (bc *BlockCalculator) ShutdownThreads() {
@@ -65,11 +84,11 @@ func JobsCalculator(bc *BlockCalculator) {
 			// stop noop thread and start mining your own block
 			bc.noopSuspended = true
 			newBlock := generateNewBlock(bc, blockOps, new(bool))
+			newBlock.Type = crypto.RegularBlock
 
 			// once we found a block send it and remove those jobs form the queue
 			if bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
 				bc.listener.AddBlock(newBlock)
-				updateQueue(bc, newBlock)
 			}
 		} else {
 			bc.noopSuspended = false
@@ -78,38 +97,22 @@ func JobsCalculator(bc *BlockCalculator) {
 		time.Sleep(time.Second)
 	}
 }
-func updateQueue(bc *BlockCalculator, block *crypto.Block) {
-	// first remove the records on the block
-	for _, v := range block.Records {
-		for i, bPtr := range *bc.jobSet {
-			if v.Filename == bPtr.Filename &&
-				v.Type == bPtr.Type &&
-				(v.Type != crypto.AppendFile || v.RecordNumber >= bPtr.RecordNumber){
-					if i == len(*bc.jobSet) - 1 {
-						*bc.jobSet = (*bc.jobSet)[:i]
-					} else {
-						*bc.jobSet = append((*bc.jobSet)[:i], (*bc.jobSet)[i+1:]...)
-					}
-					break
-			}
-		}
-	}
-	// create a fs state and validate that the jobs that we are working on are
-	// valid
-}
 
 func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
-	if len(*bc.jobSet) < bc.opsPerBlock {
-		return (*bc.jobSet)[:]
-	} else {
-		return (*bc.jobSet)[:bc.opsPerBlock - 1]
+	bc.mtx.Lock()
+	bOps := make([]*crypto.BlockOp, 0, bc.opsPerBlock)
+	for i := 0; i < bc.opsPerBlock && bc.jobSet.Len() > 0; i++ {
+		blk := heap.Pop(bc.jobSet).(crypto.BlockOp)
+		bOps = append(bOps, &blk)
 	}
+	bc.mtx.Unlock()
+	return bc.listener.ValidateJobSet(bOps)
 }
 
 
 func NewBlockCalculator(state BlockCalculatorListener, opsPerBlock int) *BlockCalculator {
 	return &BlockCalculator{
-		jobSet:      new([]*crypto.BlockOp),
+		jobSet:      new(datastruct.PriorityQueue),
 		listener:    state,
 		mtx:         new(sync.Mutex),
 		opsPerBlock: opsPerBlock,
