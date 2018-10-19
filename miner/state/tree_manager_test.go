@@ -81,6 +81,12 @@ type fakeNodeRetrievier struct {
 
 }
 
+func (fakeNodeRetrievier) OnNewBlock(b *crypto.Block) {
+}
+
+func (fakeNodeRetrievier) OnNewBlockInLongestChain(b *crypto.Block) {
+}
+
 func (fakeNodeRetrievier) GetRemoteBlock(id string) (*crypto.Block, bool) {
 	panic("implement me")
 }
@@ -97,7 +103,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 	})
 
 	t.Run("simple tree with just the genesis block", func(t *testing.T) {
@@ -110,7 +116,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -133,7 +139,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -160,7 +166,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -187,7 +193,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -208,7 +214,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -229,7 +235,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -260,7 +266,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -298,7 +304,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -337,7 +343,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -382,7 +388,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -427,7 +433,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -464,7 +470,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, fkNodeRetriv)
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -488,14 +494,14 @@ func TestValidTnxTreeManager(t *testing.T) {
 
 }
 
-type tNodeRetrievier struct {
+type tNodeRetriever struct {
 	counterRB *int
 	counterRR *int
 	block *crypto.Block
 	block2 *crypto.Block
 }
 
-func (t tNodeRetrievier) GetRemoteBlock(id string) (*crypto.Block, bool) {
+func (t tNodeRetriever) GetRemoteBlock(id string) (*crypto.Block, bool) {
 	*t.counterRB += 1
 	if fmt.Sprintf("%x", t.block.Hash()) == id {
 		return t.block, true
@@ -506,7 +512,7 @@ func (t tNodeRetrievier) GetRemoteBlock(id string) (*crypto.Block, bool) {
 	return nil, false
 }
 
-func (t tNodeRetrievier) GetRemoteRoots() ([]*crypto.Block) {
+func (t tNodeRetriever) GetRemoteRoots() ([]*crypto.Block) {
 	*t.counterRR += 1
 	ee := crypto.BlockElement{
 		Block: &crypto.Block {
@@ -555,7 +561,7 @@ func TestBlockRetrieval(t *testing.T) {
 		}
 		head.Block.FindNonce(numberOfZeros)
 
-		var tNodeRetrivStruct = tNodeRetrievier{
+		var tNodeRetrivStruct = tNodeRetriever{
 			block: parent.Block,
 			counterRB: new(int),
 			counterRR: new(int),
@@ -565,7 +571,7 @@ func TestBlockRetrieval(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, tNodeRetrivStruct)
+		}, tNodeRetrivStruct, fkNodeRetriv)
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head)
@@ -614,7 +620,7 @@ func TestBlockRetrieval(t *testing.T) {
 		}
 		head.Block.FindNonce(numberOfZeros)
 
-		var tNodeRetrivStruct = tNodeRetrievier{
+		var tNodeRetrivStruct = tNodeRetriever{
 			block: parent.Block,
 			counterRB: new(int),
 			counterRR: new(int),
@@ -624,7 +630,7 @@ func TestBlockRetrieval(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, tNodeRetrivStruct)
+		}, tNodeRetrivStruct, fkNodeRetriv)
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head)
@@ -673,7 +679,7 @@ func TestBlockRetrieval(t *testing.T) {
 		}
 		head.Block.FindNonce(numberOfZeros)
 
-		var tNodeRetrivStruct = tNodeRetrievier{
+		var tNodeRetrivStruct = tNodeRetriever{
 			block: parent.Block,
 			counterRB: new(int),
 			counterRR: new(int),
@@ -683,7 +689,7 @@ func TestBlockRetrieval(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, tNodeRetrivStruct)
+		}, tNodeRetrivStruct, fkNodeRetriv)
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head)
@@ -750,7 +756,7 @@ func TestBlockRetrieval(t *testing.T) {
 		}
 		head2.Block.FindNonce(numberOfZeros)
 
-		var tNodeRetrivStruct = tNodeRetrievier{
+		var tNodeRetrivStruct = tNodeRetriever{
 			block: parent.Block,
 			block2: head.Block,
 			counterRB: new(int),
@@ -761,7 +767,7 @@ func TestBlockRetrieval(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, tNodeRetrivStruct)
+		}, tNodeRetrivStruct, fkNodeRetriv)
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head2)
@@ -831,7 +837,7 @@ func TestBlockRetrieval(t *testing.T) {
 		}
 		head2.Block.FindNonce(numberOfZeros)
 
-		var tNodeRetrivStruct = tNodeRetrievier{
+		var tNodeRetrivStruct = tNodeRetriever{
 			block: parent.Block,
 			block2: head.Block,
 			counterRB: new(int),
@@ -842,7 +848,7 @@ func TestBlockRetrieval(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		}, tNodeRetrivStruct)
+		}, tNodeRetrivStruct, fkNodeRetriv)
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head2)
@@ -860,6 +866,89 @@ func TestBlockRetrieval(t *testing.T) {
 	})
 }
 
+type obl struct {
+	newb *int
+	newll *int
+}
+
+func (o obl) OnNewBlock(b *crypto.Block) {
+	*o.newb += 1
+}
+
+func (o obl) OnNewBlockInLongestChain(b *crypto.Block) {
+	*o.newll += 1
+}
+
+func TestOnBlockListeners(t *testing.T) {
+	t.Run("calls on new block when adding genesis block", func(t *testing.T) {
+		ob := obl{
+			newll: new(int),
+			newb: new(int),
+		}
+
+		var tNodeRetrivStruct = tNodeRetriever{
+			block: nil,
+			block2: nil,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		NewTreeManager(Config{
+			txFee: 1,
+			reward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct, ob)
+		time.Sleep(time.Millisecond * 100)
+
+		// retrieve node implicitly via getRoots thread
+
+		equals(t, 1, *ob.newb)
+		equals(t, 1, *ob.newll)
+	})
+
+	t.Run("multiple chains, only calls new root when adding to longest chain", func(t *testing.T) {
+		ob := obl{
+			newll: new(int),
+			newb: new(int),
+		}
+
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				// first chain
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                       0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile),  0,
+				101, 5, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                       0,
+				106, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 1, int(crypto.CreateFile),  0,
+				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile),  0, // id 108
+
+				// divergence into another root
+				108, 2, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                       0,
+				110, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile),  0,
+				111, 9, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                       0,
+				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile),  1,
+
+				// appends happen on that branch but somebody decided to be evil
+				108, 79, 3, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0, // id 200
+				200, 1,  3, int(crypto.RegularBlock), 1, 3, 3, 2, int(crypto.AppendFile), 0,
+			},
+		}
+
+		tree := NewTreeManager(Config{
+			txFee: 1,
+			reward: 1,
+			numberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, ob)
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err != nil {
+			t.Fail()
+		}
+		equals(t, 202, *ob.newb)
+		equals(t, 202 - 12, *ob.newll)
+	})
+}
 
 // ok fails the test if an err is not nil.
 func ok(tb testing.TB, err error) {

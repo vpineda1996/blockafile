@@ -14,6 +14,11 @@ type BlockRetriever interface {
 	GetRemoteRoots() ([]*crypto.Block)
 }
 
+type TreeChangeListener interface {
+	OnNewBlock(b *crypto.Block)
+	OnNewBlockInLongestChain(b *crypto.Block)
+}
+
 // This is one of the most critical areas of a miner, it is the only one that will have access to
 // the blockchain tree itself
 type TreeManager struct {
@@ -185,13 +190,14 @@ func UpdateRootsThread(t *TreeManager) {
 }
 
 
-func NewTreeManager(cnf Config, br BlockRetriever) *TreeManager {
+func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *TreeManager {
 	tree := datastruct.NewMRootTree()
 	tm :=  &TreeManager{
 		mtx:     new(sync.Mutex),
 		br: br,
 		mTree:   BlockChainTree{
 			mTree: tree,
+			tcl: tcl,
 			validator: NewBlockChainValidator(cnf, tree),
 		},
 		findBlockQueue: &datastruct.Queue{},
@@ -204,8 +210,9 @@ func NewTreeManager(cnf Config, br BlockRetriever) *TreeManager {
 }
 
 type BlockChainTree struct {
-	mTree *datastruct.MRootTree
+	mTree     *datastruct.MRootTree
 	validator *BlockChainValidator
+	tcl       TreeChangeListener
 }
 
 func (b BlockChainTree) Find(id string) (*datastruct.Node, bool){
@@ -220,7 +227,18 @@ func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error)
 		return nil, err
 	}
 	lg.Printf("Added block %v\n", block.Id())
-	return b.mTree.PrependElement(block, root)
+
+	nd, err := b.mTree.PrependElement(block, root)
+	if err != nil {
+		return nil, err
+	}
+
+	b.tcl.OnNewBlock(block.Block)
+	if b.GetLongestChain().Id == block.Id() {
+		b.tcl.OnNewBlockInLongestChain(block.Block)
+	}
+
+	return nd, err
 }
 
 func (b BlockChainTree) GetLongestChain() *datastruct.Node {

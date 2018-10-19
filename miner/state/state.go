@@ -86,6 +86,14 @@ func (s MinerStateImpl) GetRemoteRoots() ([]*crypto.Block) {
 	return blockArr
 }
 
+func (s MinerStateImpl) OnNewBlock(b *crypto.Block) {
+	panic("implement me")
+}
+
+func (s MinerStateImpl) OnNewBlockInLongestChain(b *crypto.Block) {
+	panic("implement me")
+}
+
 func (s MinerStateImpl) AddBlock(b *crypto.Block) {
 	lg.Printf("added new block: %x", b.Hash())
 	// add it to the tree manager and then broadcast the block
@@ -130,7 +138,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		clients: cls,
 	}
 	var err error
-	ms.tm = NewTreeManager(config, ms)
+	ms.tm = NewTreeManager(config, ms, ms)
 	if err != nil {
 		panic(err)
 	}
