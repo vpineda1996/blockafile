@@ -73,13 +73,27 @@ func buildTreeWithManager(treeDef treeBuilderTest, tm *TreeManager) error {
 
 const numberOfZeros = 8
 
+type fakeNodeRetrievier struct {
+
+}
+
+func (fakeNodeRetrievier) GetRemoteBlock(id string) (*crypto.Block, bool) {
+	panic("implement me")
+}
+
+func (fakeNodeRetrievier) GetRemoteRoots() ([]*crypto.Block) {
+	return []*crypto.Block{}
+}
+
+var fkNodeRetriv = fakeNodeRetrievier{}
+
 func TestSimpleTreeManager(t *testing.T) {
 	t.Run("init works", func(t *testing.T) {
 		NewTreeManager(Config{
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 	})
 
 	t.Run("simple tree with just the genesis block", func(t *testing.T) {
@@ -92,7 +106,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -115,7 +129,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -142,7 +156,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -169,7 +183,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -190,7 +204,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -211,7 +225,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -242,7 +256,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -280,7 +294,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -319,7 +333,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -364,7 +378,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -409,7 +423,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -446,7 +460,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			txFee: 1,
 			reward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -467,6 +481,10 @@ func TestValidTnxTreeManager(t *testing.T) {
 		equals(t, "1", fs["c"].Creator)
 		equals(t, datum[3][:], []byte(fs["c"].Data)[:])
 	})
+
+}
+
+func TestBlockRetrieval(t *testing.T) {
 
 }
 

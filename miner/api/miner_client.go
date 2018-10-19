@@ -67,7 +67,7 @@ func (MinerClient) GetOtherHosts() []string {
 	panic("")
 }
 
-func (m MinerClient) SendNode(block *crypto.Block) {
+func (m MinerClient) SendBlock(block *crypto.Block) {
 	args := ReceiveNodeArgs{
 		Block: *block,
 	}

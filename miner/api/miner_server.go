@@ -13,7 +13,7 @@ import (
 type MinerServerListener interface {
 	AddBlock(b *crypto.Block)
 	AddJob(b *crypto.BlockOp)
-	GetNode(id string) (*crypto.Block, bool)
+	GetBlock(id string) (*crypto.Block, bool)
 	GetRoots() []*crypto.Block
 }
 
@@ -31,7 +31,7 @@ type GetNodeRes struct {
 }
 
 func (m *MinerServer) GetNode(args *GetNodeArgs, res *GetNodeRes) error  {
-	bk, ok := m.state.GetNode(args.Id)
+	bk, ok := m.state.GetBlock(args.Id)
 	*res = GetNodeRes{
 		Block: *bk,
 		Found: ok,

@@ -86,7 +86,7 @@ func TestAddNodeTest(t *testing.T) {
 		t.Fail()
 	}
 
-	c.SendNode(&bk)
+	c.SendBlock(&bk)
 }
 
 func TestGetRoots(t *testing.T) {

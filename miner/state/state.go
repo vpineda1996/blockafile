@@ -9,7 +9,7 @@ import (
 
 type MinerState interface {
 	GetFilesystemState() (FilesystemState, error)
-	GetNode(id string) (*crypto.Block, bool)
+	GetBlock(id string) (*crypto.Block, bool)
 	GetRoots() []*crypto.Block
 	GetAccountState(txFee int, reward int) (AccountsState, error)
 }
@@ -32,7 +32,7 @@ func (s MinerStateImpl) GetFilesystemState() (FilesystemState, error) {
 	return NewFilesystemState(s.tm.GetLongestChain())
 }
 
-func (s MinerStateImpl) GetNode(id string) (*crypto.Block, bool){
+func (s MinerStateImpl) GetBlock(id string) (*crypto.Block, bool){
 	return s.tm.GetBlock(id)
 }
 
@@ -44,16 +44,44 @@ func (s MinerStateImpl) GetAccountState(txFee int, reward int) (AccountsState, e
 	return NewAccountsState(reward, txFee, s.tm.GetLongestChain())
 }
 
+func (s MinerStateImpl) GetRemoteBlock(id string) (*crypto.Block, bool) {
+	panic("implement me")
+}
+
+func (s MinerStateImpl) GetRemoteRoots() ([]*crypto.Block) {
+	panic("implement me")
+}
+
 func (s MinerStateImpl) AddBlock(b *crypto.Block) {
 	lg.Printf("added new block: %x", b.Hash())
+	// add it to the tree manager and then broadcast the block
 	s.tm.AddBlock(crypto.BlockElement{
 		Block: b,
 	})
+	// bkst block
+	s.broadcastBlock(b)
+}
+
+func (s MinerStateImpl) broadcastBlock(b *crypto.Block) {
+	go func() {
+		for _, c := range s.clients {
+			c.SendBlock(b)
+		}
+	}()
 }
 
 func (s MinerStateImpl) AddJob(b *crypto.BlockOp) {
 	lg.Printf("added new job: %v", b)
 	// todo vpineda add job to miners
+	s.broadcastJob(b)
+}
+
+func (s MinerStateImpl) broadcastJob(b *crypto.BlockOp) {
+	go func() {
+		for _, c := range s.clients {
+			c.SendJob(b)
+		}
+	}()
 }
 
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
@@ -65,11 +93,15 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		}
 	}
 	ms := MinerStateImpl{
-		tm: NewTreeManager(config),
 		clients: cls,
 	}
+	var err error
+	ms.tm = NewTreeManager(config, ms)
+	if err != nil {
+		panic(err)
+	}
 
-	err := api.InitMinerServer(config.address, ms)
+	err = api.InitMinerServer(config.address, ms)
 	if err != nil {
 		panic("cannot init server twice!")
 	}
