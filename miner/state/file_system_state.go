@@ -34,7 +34,10 @@ func (b FilesystemState) GetFile(acc Filename) (*FileInfo, bool) {
 	return v, ok
 }
 
-func NewFilesystemState(nd *datastruct.Node) (FilesystemState, error) {
+func NewFilesystemState(
+	confirmsPerFileCreate int,
+	confirmsPerFileAppend int,
+	nd *datastruct.Node) (FilesystemState, error) {
 	if nd == nil {
 		return FilesystemState{
 			fs: make(map[Filename]*FileInfo),
@@ -42,13 +45,16 @@ func NewFilesystemState(nd *datastruct.Node) (FilesystemState, error) {
 	}
 	lg.Printf("Creating new fs state with %v as top", nd.Id)
 	nds := transverseChain(nd)
-	fs, err := generateFilesystem(nds)
+	fs, err := generateFilesystem(nds, confirmsPerFileCreate, confirmsPerFileAppend)
 	return FilesystemState{
 		fs:fs,
 	}, err
 }
 
-func generateFilesystem(nodes []*datastruct.Node) (map[Filename]*FileInfo, error) {
+func generateFilesystem(
+	nodes []*datastruct.Node,
+	confirmsPerFileCreate int,
+	confirmsPerFileAppend int) (map[Filename]*FileInfo, error) {
 	res := make(map[Filename]*FileInfo)
 
 	// sanity checks
@@ -75,7 +81,16 @@ func generateFilesystem(nodes []*datastruct.Node) (map[Filename]*FileInfo, error
 			}
 			// do not award any currency to anybody
 		case crypto.RegularBlock:
-			err := evaluateFSBlockOps(res, bae.Block.Records)
+			createOpsConfirmed := false
+			appendOpsConfirmed := false
+			numNodesInFrontOfMe := len(nodes) - idx - 1
+			if numNodesInFrontOfMe >= confirmsPerFileCreate {
+				createOpsConfirmed = true
+			}
+			if numNodesInFrontOfMe >= confirmsPerFileAppend {
+				appendOpsConfirmed = true
+			}
+			err := evaluateFSBlockOps(res, bae.Block.Records, createOpsConfirmed, appendOpsConfirmed)
 			if err != nil {
 				return nil, err
 			}
@@ -87,31 +102,39 @@ func generateFilesystem(nodes []*datastruct.Node) (map[Filename]*FileInfo, error
 }
 
 // TODO EC1 delete add the case over here to add the record
-func evaluateFSBlockOps(fs map[Filename]*FileInfo, bcs []*crypto.BlockOp ) error {
+func evaluateFSBlockOps(
+	fs map[Filename]*FileInfo,
+	bcs []*crypto.BlockOp,
+	createOpsConfirmed bool,
+	appendOpsConfirmed bool) error {
 	for _, tx := range bcs {
 		switch tx.Type {
 		case crypto.CreateFile:
-			lg.Printf("Creating file %v", tx.Filename)
-			if _, exists := fs[Filename(tx.Filename)]; exists {
-				return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
-			}
-			fi := FileInfo {
-				Data:    make([]byte, 0, crypto.DataBlockSize),
-				NumberOfRecords: 0,
-				Creator: tx.Creator,
-			}
-			fs[Filename(tx.Filename)] = &fi
-		case crypto.AppendFile:
-			lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
-			if f, exists := fs[Filename(tx.Filename)]; exists {
-				if tx.RecordNumber != f.NumberOfRecords {
-					return errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
-						" to file " + tx.Filename + " duplicated in chain, failing")
+			if createOpsConfirmed {
+				lg.Printf("Creating file %v", tx.Filename)
+				if _, exists := fs[Filename(tx.Filename)]; exists {
+					return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
 				}
-				f.NumberOfRecords += 1
-				f.Data = append(f.Data, FileData(tx.Data[:])...)
-			} else {
-				return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
+				fi := FileInfo {
+					Data:    make([]byte, 0, crypto.DataBlockSize),
+					NumberOfRecords: 0,
+					Creator: tx.Creator,
+				}
+				fs[Filename(tx.Filename)] = &fi
+			}
+		case crypto.AppendFile:
+			if appendOpsConfirmed {
+				lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
+				if f, exists := fs[Filename(tx.Filename)]; exists {
+					if tx.RecordNumber != f.NumberOfRecords {
+						return errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
+							" to file " + tx.Filename + " duplicated in chain, failing")
+					}
+					f.NumberOfRecords += 1
+					f.Data = append(f.Data, FileData(tx.Data[:])...)
+				} else {
+					return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
+				}
 			}
 		default:
 			return errors.New("vous les hommes êtes tous les mêmes, Macho mais cheap, Bande de mauviettes infidèles")

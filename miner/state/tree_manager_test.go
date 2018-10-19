@@ -140,7 +140,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -167,7 +167,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -236,7 +236,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			log.Println(err)
 			t.Fail()
@@ -267,7 +267,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			log.Println(err)
 			t.Fail()
@@ -305,7 +305,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -344,7 +344,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -389,7 +389,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -471,7 +471,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			t.Fail()
 		}
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
 		if err != nil {
 			panic(err)
 		}
@@ -575,7 +575,7 @@ func TestBlockRetrieval(t *testing.T) {
 
 		equals(t, 1, *tNodeRetrivStruct.counterRB)
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
 		ok(t, err)
 
 		fs := fsState.GetAll()
@@ -634,7 +634,7 @@ func TestBlockRetrieval(t *testing.T) {
 
 		equals(t, 1, *tNodeRetrivStruct.counterRB)
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
 		ok(t, err)
 
 		fs := fsState.GetAll()
@@ -691,7 +691,7 @@ func TestBlockRetrieval(t *testing.T) {
 
 		time.Sleep(time.Millisecond * 100)
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
 		ok(t, err)
 
 		fs := fsState.GetAll()
@@ -771,7 +771,7 @@ func TestBlockRetrieval(t *testing.T) {
 
 		equals(t, 2, *tNodeRetrivStruct.counterRB)
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
 		ok(t, err)
 
 		fs := fsState.GetAll()
@@ -852,7 +852,7 @@ func TestBlockRetrieval(t *testing.T) {
 
 		equals(t, 3, *tNodeRetrivStruct.counterRB)
 
-		fsState, err := NewFilesystemState(tree.GetLongestChain())
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
 		ok(t, err)
 
 		fs := fsState.GetAll()
