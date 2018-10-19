@@ -228,6 +228,185 @@ func TestComplexBlockChainTree(t *testing.T) {
 	})
 }
 
+func TestAccountConfig(t *testing.T) {
+	AddAppendNode := func(tree *MRootTree) {
+		hd := tree.GetLongestChain()
+		prevBlk := [md5.Size]byte{}
+		copy(prevBlk[:], hd.Value.(crypto.BlockElement).Block.Hash())
+		records := make([]*crypto.BlockOp, 1)
+		record := crypto.BlockOp{
+			Type: crypto.AppendFile,
+			Filename: filenames[0],
+			Data: datum[0],
+			Creator: strconv.Itoa(1),
+			RecordNumber: uint32(0),
+		}
+		records[0] = &record
+		ee := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.RegularBlock,
+				PrevBlock: prevBlk,
+				Records: records,
+				Nonce: 12324,
+			},
+		}
+		tree.PrependElement(ee, tree.GetLongestChain())
+	}
+
+	t.Run("test create fee", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 2,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
+				100, 1, 2, int(crypto.NoOpBlock), 0, 1,
+				101, 3, 3, int(crypto.NoOpBlock), 0, 1,
+				104, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
+		}
+		tree := buildTree(treeDef)
+		bkState, err := NewAccountsState(appendFee, 10, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 91 // 100 + 1 - 10
+		mp[Account(strconv.Itoa(2))] = 1
+		mp[Account(strconv.Itoa(3))] = 3
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("test append fee", func(t *testing.T){
+		treeDef := treeBuilderTest{
+			height: 2,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
+				100, 1, 2, int(crypto.NoOpBlock), 0, 1,
+				101, 3, 3, int(crypto.NoOpBlock), 0, 1,
+				104, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
+		}
+		tree := buildTree(treeDef)
+
+		// Add append node
+		AddAppendNode(tree)
+
+		// Strictly speaking the appendFee should always == 1, but for testing purposes we set it to something
+		// larger here
+		bkState, err := NewAccountsState(10, createFee, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 91 // 100 + 1 - 10
+		mp[Account(strconv.Itoa(2))] = 1
+		mp[Account(strconv.Itoa(3))] = 3
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("test op reward", func(t *testing.T){
+		treeDef := treeBuilderTest{
+			height: 2,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
+				100, 1, 2, int(crypto.NoOpBlock), 0, 1,
+				101, 3, 3, int(crypto.NoOpBlock), 0, 1,
+				104, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
+		}
+		tree := buildTree(treeDef)
+		// weooo that's a lot of money!
+		bkState, err := NewAccountsState(appendFee, createFee, 1000, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 1099 // 100 + 1000 - 1
+		mp[Account(strconv.Itoa(2))] = 1
+		mp[Account(strconv.Itoa(3))] = 3
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("test noop reward", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 2,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
+				100, 1, 2, int(crypto.NoOpBlock), 0, 1,
+				101, 3, 3, int(crypto.NoOpBlock), 0, 1,
+				104, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
+		}
+		tree := buildTree(treeDef)
+		// if only making money was this easy
+		bkState, err := NewAccountsState(appendFee, createFee, opReward, 100, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 10000 // 100 * 100 + 1 - 1
+		mp[Account(strconv.Itoa(2))] = 100
+		mp[Account(strconv.Itoa(3))] = 300
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("test reward and fee in the same tree", func(t *testing.T){
+		treeDef := treeBuilderTest{
+			height: 2,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
+				100, 1, 2, int(crypto.NoOpBlock), 0, 1,
+				101, 3, 3, int(crypto.NoOpBlock), 0, 1,
+				104, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
+		}
+		tree := buildTree(treeDef)
+		bkState, err := NewAccountsState(appendFee, 10, opReward, 10, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 991 // 100 * 10 - 10 + 1
+		mp[Account(strconv.Itoa(2))] = 10
+		mp[Account(strconv.Itoa(3))] = 30
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("test reward and fee in the same block", func(t *testing.T){
+		treeDef := treeBuilderTest{
+			height: 2,
+			roots: 1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
+				100, 1, 2, int(crypto.NoOpBlock), 0, 1,
+				101, 3, 3, int(crypto.NoOpBlock), 0, 1,
+				104, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0},
+		}
+		tree := buildTree(treeDef)
+		bkState, err := NewAccountsState(appendFee, 10, 5, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 95 // 100 + 5 - 10
+		mp[Account(strconv.Itoa(2))] = 1
+		mp[Account(strconv.Itoa(3))] = 3
+		equals(t, mp, bkState.GetAll())
+	})
+}
+
 // equals fails the test if exp is not equal to act.
 func equals(tb testing.TB, exp, act interface{}) {
 	if !reflect.DeepEqual(exp, act) {
