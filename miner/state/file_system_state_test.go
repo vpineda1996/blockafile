@@ -2,6 +2,7 @@ package state
 
 import (
 	"../../crypto"
+	. "../../shared"
 	"crypto/md5"
 	"log"
 	"strconv"

@@ -97,6 +97,10 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	return nil
 }
 
+func (t *TreeManager) ValidateBlock(b *crypto.Block) bool{
+	return t.mTree.ValidateBlock(b)
+}
+
 func (t *TreeManager) GetLongestChain() *datastruct.Node {
 	return t.mTree.GetLongestChain()
 }
@@ -243,6 +247,13 @@ func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error)
 
 func (b BlockChainTree) GetLongestChain() *datastruct.Node {
 	return b.mTree.GetLongestChain()
+}
+
+func (b BlockChainTree) ValidateBlock(blk *crypto.Block) bool{
+	_, err := b.validator.Validate(crypto.BlockElement{
+		Block: blk,
+	})
+	return err != nil
 }
 
 func (b BlockChainTree) GetRoots() []*datastruct.Node{

@@ -18,7 +18,7 @@ type MinerServerListener interface {
 }
 
 type MinerServer struct {
-	state MinerServerListener
+	listener MinerServerListener
 }
 
 type GetNodeArgs struct {
@@ -31,7 +31,7 @@ type GetNodeRes struct {
 }
 
 func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error  {
-	bk, ok := m.state.GetBlock(args.Id)
+	bk, ok := m.listener.GetBlock(args.Id)
 	*res = GetNodeRes{
 		Block: *bk,
 		Found: ok,
@@ -42,7 +42,7 @@ func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error  {
 type EmptyArgs struct {}
 
 func (m *MinerServer) GetRoots(e *EmptyArgs, res *[]*crypto.Block) error  {
-	bkArr := m.state.GetRoots()
+	bkArr := m.listener.GetRoots()
 	*res = bkArr
 	return nil
 }
@@ -58,7 +58,7 @@ type ReceiveNodeArgs struct {
 
 func (m *MinerServer) ReceiveNode(args *ReceiveNodeArgs, res *bool) error {
 	*res = true
-	m.state.AddBlock(&args.Block)
+	m.listener.AddBlock(&args.Block)
 	return nil
 }
 
@@ -68,13 +68,13 @@ type ReceiveJobArgs struct {
 
 func (m *MinerServer) ReceiveJob(args *ReceiveJobArgs, res *bool) error {
 	*res = true
-	m.state.AddJob(&args.BlockOp)
+	m.listener.AddJob(&args.BlockOp)
 	return nil
 }
 
 func InitMinerServer(addr string, state MinerServerListener) error {
 	ms := new(MinerServer)
-	ms.state = state
+	ms.listener = state
 	rpc.Register(ms)
 	rpc.HandleHTTP()
 	l, e := net.Listen("tcp", addr)
