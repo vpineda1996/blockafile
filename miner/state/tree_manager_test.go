@@ -497,3 +497,103 @@ func TestValidTnxTreeManager(t *testing.T) {
 
 }
 
+func TestValidAccountState(t *testing.T) {
+	t.Run("test reward and fee in the same block, fails", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0, 0,
+				100, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 2, int(crypto.RegularBlock), 2, 2, 0, 0, int(crypto.AppendFile), 0},
+		}
+		// Strictly speaking the appendFee should always == 1, but for testing purposes we set it to something
+		// larger here
+		tree := NewTreeManager(Config{
+			appendFee: 1000,
+			createFee: 1,
+			opReward: 500,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		})
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err == nil {
+			t.Fail()
+		}
+	})
+
+	t.Run("test reward and fee in the same block, fine", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0, 0,
+				100, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 2, int(crypto.RegularBlock), 2, 2, 0, 0, int(crypto.AppendFile), 0},
+		}
+		// Strictly speaking the appendFee should always == 1, but for testing purposes we set it to something
+		// larger here
+		tree := NewTreeManager(Config{
+			appendFee: 1000,
+			createFee: 1,
+			opReward: 1000,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		})
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err != nil {
+			t.Fail()
+		}
+	})
+
+	t.Run("fails if append is too costly", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0, 0,
+				100, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 2, int(crypto.RegularBlock), 2, 2, 0, 0, int(crypto.AppendFile), 0},
+		}
+		// Strictly speaking the appendFee should always == 1, but for testing purposes we set it to something
+		// larger here
+		tree := NewTreeManager(Config{
+			appendFee: 1000,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		})
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err == nil {
+			t.Fail()
+		}
+	})
+
+	t.Run("fails if create is too costly", func(t *testing.T){
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0, 0,
+				100, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 2, int(crypto.RegularBlock), 2, 2, 0, 0, int(crypto.AppendFile), 0},
+		}
+		tree := NewTreeManager(Config{
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1000,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		})
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err == nil {
+			t.Fail()
+		}
+	})
+}
+
