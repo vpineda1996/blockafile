@@ -294,7 +294,7 @@ func TestAccountConfig(t *testing.T) {
 		// Add append node
 		AddAppendNode(tree)
 
-		// Strictly speaking the appendFee should always == 1, but for testing purposes we set it to something
+		// Strictly speaking the AppendFee should always == 1, but for testing purposes we set it to something
 		// larger here
 		bkState, err := NewAccountsState(10, createFee, opReward, noOpReward, tree.GetLongestChain())
 		if err != nil {

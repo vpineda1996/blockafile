@@ -50,7 +50,8 @@ func (t *TreeManager) GetRoots() []*crypto.Block {
 		if !ok {
 			continue
 		}
-		bkArr[i] = bk.Block
+		cpy := *bk.Block
+		bkArr[i] = &cpy
 	}
 	return bkArr
 }
@@ -98,7 +99,8 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 }
 
 func (t *TreeManager) GetHighestRoot() *crypto.Block {
-	return t.mTree.GetLongestChain().Value.(crypto.BlockElement).Block
+	cpy := *t.mTree.GetLongestChain().Value.(crypto.BlockElement).Block
+	return &cpy
 }
 
 func (t *TreeManager) ValidateBlock(b *crypto.Block) bool{

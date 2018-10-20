@@ -26,8 +26,8 @@ func (fakeState) AddBlock(b *crypto.Block) {
 	}
 }
 
-func (fakeState) AddJob(b *crypto.BlockOp) {
-	if !reflect.DeepEqual(bkJob, *b) {
+func (fakeState) AddJob(b crypto.BlockOp) {
+	if !reflect.DeepEqual(bkJob, b) {
 		panic("error, blocks weren't equal")
 	}
 }

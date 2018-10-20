@@ -20,17 +20,17 @@ type MinerState struct {
 }
 
 type Config struct {
-	appendFee             Balance // Note that this is not user-configured. Always exactly 1 coin.
-	createFee             Balance
-	opReward              Balance
-	noOpReward            Balance
-	numberOfZeros         int
-	address               string
-	confirmsPerFileCreate int
-	confirmsPerFileAppend int
-	opPerBlock            int
-	minerId               string
-	genesisBlockHash	  [md5.Size]byte
+	AppendFee             Balance // Note that this is not user-configured. Always exactly 1 coin.
+	CreateFee             Balance
+	OpReward              Balance
+	NoOpReward            Balance
+	NumberOfZeros         int
+	Address               string
+	ConfirmsPerFileCreate int
+	ConfirmsPerFileAppend int
+	OpPerBlock            int
+	MinerId               string
+	GenesisBlockHash      [md5.Size]byte
 	GenOpBlockTimeout     uint8
 }
 
@@ -107,7 +107,6 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 }
 
 func (s MinerState) AddBlock(b *crypto.Block) {
-	lg.Printf("added new block: %x", b.Hash())
 	// add it to the tree manager and then broadcast the block
 	(*s.tm).AddBlock(crypto.BlockElement{
 		Block: b,
@@ -124,11 +123,10 @@ func (s MinerState) broadcastBlock(b *crypto.Block) {
 	}()
 }
 
-func (s MinerState) AddJob(b *crypto.BlockOp) {
-	lg.Printf("added new job: %v", b)
-	// todo vpineda add job to miners
-	(*s.bc).AddJob(b)
-	s.broadcastJob(b)
+func (s MinerState) AddJob(b crypto.BlockOp) {
+	lg.Printf("Added new job: %v", b.Filename)
+	(*s.bc).AddJob(&b)
+	s.broadcastJob(&b)
 }
 
 func (s MinerState) broadcastJob(b *crypto.BlockOp) {
@@ -163,19 +161,19 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	var blockCalcPtr *BlockCalculator
 	ms := MinerState{
 		clients: cls,
-		minerId: config.minerId,
+		minerId: config.MinerId,
 		tm: &treePtr,
 		bc: &blockCalcPtr,
 	}
 	treePtr = NewTreeManager(config, ms, ms)
-	blockCalcPtr = NewBlockCalculator(ms, config.numberOfZeros, config.opPerBlock, time.Duration(config.GenOpBlockTimeout))
+	blockCalcPtr = NewBlockCalculator(ms, config.NumberOfZeros, config.OpPerBlock, time.Duration(config.GenOpBlockTimeout))
 
 	// add genesis block
 	err := (*ms.tm).AddBlock(crypto.BlockElement{
 		Block: &crypto.Block{
 			Records: []*crypto.BlockOp{},
 			Type: crypto.GenesisBlock,
-			PrevBlock: config.genesisBlockHash,
+			PrevBlock: config.GenesisBlockHash,
 			Nonce: 0,
 			MinerId: "",
 		},
@@ -189,7 +187,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	(*ms.tm).StartThreads()
 	(*ms.bc).StartThreads()
 
-	err = api.InitMinerServer(config.address, ms)
+	err = api.InitMinerServer(config.Address, ms)
 	if err != nil {
 		panic("cannot init server twice!")
 	}

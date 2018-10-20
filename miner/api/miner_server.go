@@ -12,7 +12,7 @@ import (
 
 type MinerServerListener interface {
 	AddBlock(b *crypto.Block)
-	AddJob(b *crypto.BlockOp)
+	AddJob(b crypto.BlockOp)
 	GetBlock(id string) (*crypto.Block, bool)
 	GetRoots() []*crypto.Block
 }
@@ -71,7 +71,7 @@ type ReceiveJobArgs struct {
 
 func (m *MinerServer) ReceiveJob(args *ReceiveJobArgs, res *bool) error {
 	*res = true
-	m.listener.AddJob(&args.BlockOp)
+	m.listener.AddJob(args.BlockOp)
 	return nil
 }
 

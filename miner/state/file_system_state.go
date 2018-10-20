@@ -67,6 +67,7 @@ func generateFilesystem(
 	// start iterating
 	for idx, nd := range nodes {
 		bae := nd.Value.(crypto.BlockElement)
+		lg.Printf("FS: Processing block %v", bae.Id())
 		switch bae.Block.Type {
 		case crypto.GenesisBlock:
 			if idx != 0 {
@@ -104,10 +105,10 @@ func evaluateFSBlockOps(
 		switch tx.Type {
 		case crypto.CreateFile:
 			if createOpsConfirmed {
-				lg.Printf("Creating file %v", tx.Filename)
 				if _, exists := fs[Filename(tx.Filename)]; exists {
 					return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
 				}
+				lg.Printf("Creating file %v", tx.Filename)
 				fi := FileInfo {
 					Data:    make([]byte, 0, crypto.DataBlockSize),
 					NumberOfRecords: 0,

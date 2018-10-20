@@ -7,6 +7,7 @@ import (
 	"container/heap"
 	"crypto/md5"
 	"log"
+	"math"
 	"os"
 	"reflect"
 	"sync"
@@ -33,6 +34,7 @@ type BlockCalculator struct {
 }
 
 var lg = log.New(os.Stdout, "calculators: ", log.Lmicroseconds|log.Lshortfile)
+var counter = math.MaxInt32
 
 func (bc *BlockCalculator) AddJob(b *crypto.BlockOp) {
 	bc.noopSuspended = true
@@ -40,7 +42,9 @@ func (bc *BlockCalculator) AddJob(b *crypto.BlockOp) {
 	defer bc.mtx.Unlock()
 	item := datastruct.Item{
 		Value: b,
+		Priority: counter,
 	}
+	counter -= 1
 	heap.Push(bc.jobSet, &item)
 }
 
@@ -71,21 +75,21 @@ func (bc *BlockCalculator) StartThreads() {
 
 func NoOpCalculator(bc *BlockCalculator) {
 	for !bc.shutdownThreads {
-		newBlock := generateNewBlock(bc, []*crypto.BlockOp{}, &bc.noopSuspended)
+		newBlock := generateNewBlock(bc, []*crypto.BlockOp{}, &bc.noopSuspended, crypto.NoOpBlock)
 		if !bc.noopSuspended && bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
 			lg.Printf("No-op calculator found a block")
 			bc.listener.AddBlock(newBlock)
 		}
-		time.Sleep(time.Millisecond * bc.timePerBlockTimeoutMillis)
+		time.Sleep(time.Millisecond * 50)
 	}
 }
-func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *bool) *crypto.Block {
+func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *bool, blockType crypto.BlockType) *crypto.Block {
 	rootHash := [md5.Size]byte{}
 	copy(rootHash[:], bc.listener.GetHighestRoot().Hash())
 
 	bk := crypto.Block{
 		MinerId: bc.listener.GetMinerId(),
-		Type: crypto.NoOpBlock,
+		Type: blockType,
 		Nonce: 0,
 		Records: ops,
 		PrevBlock: rootHash,
@@ -100,36 +104,43 @@ func JobsCalculator(bc *BlockCalculator) {
 		if len(blockOps) > 0 {
 			// stop noop thread and start mining your own block
 			bc.noopSuspended = true
-			newBlock := generateNewBlock(bc, blockOps, new(bool))
-			newBlock.Type = crypto.RegularBlock
-
-			// once we found a block send it and remove those jobs form the queue
-			if bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
-				lg.Printf("Jobs calculator found a block")
-				bc.listener.AddBlock(newBlock)
+			for {
+				newBlock := generateNewBlock(bc, blockOps, new(bool), crypto.RegularBlock)
+				lg.Printf("Generated block with %v ops", len(blockOps))
+				// once we found a block send it and remove those jobs form the queue
+				if bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
+					lg.Printf("Jobs calculator found a block")
+					bc.listener.AddBlock(newBlock)
+					break
+				}
 			}
+
 		} else {
 			bc.noopSuspended = false
 		}
 
-		time.Sleep(time.Millisecond * bc.timePerBlockTimeoutMillis)
+		time.Sleep(time.Millisecond * 50)
 	}
 }
 
 func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
 	bOps := make([]*crypto.BlockOp, 0, bc.opsPerBlock)
 	for i := 0; i < bc.opsPerBlock && bc.jobSet.Len() > 0; i++ {
+		if i == 0 {
+			time.Sleep(time.Millisecond * bc.timePerBlockTimeoutMillis)
+		}
 		blk := heap.Pop(bc.jobSet).(*datastruct.Item).Value.(*crypto.BlockOp)
 		bOps = append(bOps, blk)
 	}
-	bc.mtx.Unlock()
+
 	return bc.listener.ValidateJobSet(bOps)
 }
 
 
 func NewBlockCalculator(state BlockCalculatorListener, numberOfZeros int, opsPerBlock int, blockTimeout time.Duration) *BlockCalculator {
-	return &BlockCalculator{
+	bc := &BlockCalculator{
 		jobSet:      new(datastruct.PriorityQueue),
 		listener:    state,
 		mtx:         new(sync.Mutex),
@@ -137,4 +148,6 @@ func NewBlockCalculator(state BlockCalculatorListener, numberOfZeros int, opsPer
 		opsPerBlock: opsPerBlock,
 		timePerBlockTimeoutMillis: blockTimeout,
 	}
+	heap.Init(bc.jobSet)
+	return bc
 }

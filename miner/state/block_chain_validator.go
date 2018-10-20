@@ -29,7 +29,7 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 		return nil, errors.New("node is already on the blockchain")
 	}
 
-	valid := validateBlockHash(b, bcv.cnf.numberOfZeros)
+	valid := validateBlockHash(b, bcv.cnf.NumberOfZeros)
 
 	if !valid {
 		return nil, errors.New("this is a corrupt node, failing")
@@ -53,15 +53,15 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 	// generate history if need be
 	if bcv.generatingNodeId != root.Id {
 		bcas, err := NewAccountsState(
-			int(bcv.cnf.appendFee),
-			int(bcv.cnf.createFee),
-			int(bcv.cnf.opReward),
-			int(bcv.cnf.noOpReward),
+			int(bcv.cnf.AppendFee),
+			int(bcv.cnf.CreateFee),
+			int(bcv.cnf.OpReward),
+			int(bcv.cnf.NoOpReward),
 			root)
 		if err != nil {
 			return nil, err
 		}
-		fss, err := NewFilesystemState(bcv.cnf.confirmsPerFileCreate, bcv.cnf.confirmsPerFileAppend, root)
+		fss, err := NewFilesystemState(bcv.cnf.ConfirmsPerFileCreate, bcv.cnf.ConfirmsPerFileAppend, root)
 		if err != nil {
 			return nil, err
 		}
@@ -89,20 +89,24 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 }
 
 func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *datastruct.Node) []*crypto.BlockOp {
+	if len(ops) == 0 {
+		return ops
+	}
+
 	bcv.mtx.Lock()
 	defer bcv.mtx.Unlock()
 
 	if bcv.generatingNodeId != rootNode.Id {
 		bcas, err := NewAccountsState(
-			int(bcv.cnf.appendFee),
-			int(bcv.cnf.createFee),
-			int(bcv.cnf.opReward),
-			int(bcv.cnf.noOpReward),
+			int(bcv.cnf.AppendFee),
+			int(bcv.cnf.CreateFee),
+			int(bcv.cnf.OpReward),
+			int(bcv.cnf.NoOpReward),
 			rootNode)
 		if err != nil {
 			return []*crypto.BlockOp{}
 		}
-		fss, err := NewFilesystemState(bcv.cnf.confirmsPerFileCreate, bcv.cnf.confirmsPerFileAppend, rootNode)
+		fss, err := NewFilesystemState(bcv.cnf.ConfirmsPerFileCreate, bcv.cnf.ConfirmsPerFileAppend, rootNode)
 		if err != nil {
 			return []*crypto.BlockOp{}
 		}
@@ -111,12 +115,23 @@ func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *
 		bcv.lastFilesystemState = fss
 	}
 
-	nFile := make(map[Filename]*FileInfo)
-	newOps, err := bcv.validateNewFSBlockOps(ops, nFile)
-	nAcc := make(map[Account]Balance)
-	newOps, err = bcv.validateNewAccountBlockOps(newOps, nAcc)
-	if err != nil {
-		lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
+
+	newOps, original := ops, -1
+	for original != len(newOps) {
+		original = len(newOps)
+		nFile := make(map[Filename]*FileInfo)
+		var err error
+		newOps, err = bcv.validateNewFSBlockOps(ops, nFile)
+
+		if err != nil {
+			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
+		}
+
+		nAcc := make(map[Account]Balance)
+		newOps, err = bcv.validateNewAccountBlockOps(newOps, nAcc)
+		if err != nil {
+			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
+		}
 	}
 	return newOps
 }
@@ -181,6 +196,22 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp, res
 				lg.Printf("Adding record no %v to file %v", tx.RecordNumber, tx.Filename)
 				fi.Data = append(fi.Data, FileData(tx.Data[:])...)
 				validOps = append(validOps, tx)
+			} else if donkey, inRes := res[Filename(tx.Filename)]; inRes {
+				if tx.RecordNumber != donkey.NumberOfRecords {
+					err = errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
+						" to file " + tx.Filename + " duplicated in chain, failing, expected " + strconv.Itoa(int(donkey.NumberOfRecords)))
+					continue
+				}
+				monkey := FileInfo {
+					Data:    make([]byte, 0, len(donkey.Data)),
+					NumberOfRecords: donkey.NumberOfRecords + 1,
+					Creator: donkey.Creator,
+				}
+				res[Filename(tx.Filename)] = &monkey
+				copy(monkey.Data, donkey.Data)
+				lg.Printf("Adding record no %v to file %v", tx.RecordNumber, tx.Filename)
+				monkey.Data = append(monkey.Data, FileData(tx.Data[:])...)
+				validOps = append(validOps, tx)
 			} else {
 				err = errors.New("file " + tx.Filename + " doesn't exist but tried to append")
 				continue
@@ -201,9 +232,9 @@ func (bcv *BlockChainValidator) validateNewAccountState(b crypto.BlockElement) (
 	// Award miner
 	switch b.Block.Type {
 	case crypto.NoOpBlock:
-		award(res, Account(b.Block.MinerId), bcv.cnf.noOpReward)
+		award(res, Account(b.Block.MinerId), bcv.cnf.NoOpReward)
 	case crypto.RegularBlock:
-		award(res, Account(b.Block.MinerId), bcv.cnf.opReward)
+		award(res, Account(b.Block.MinerId), bcv.cnf.OpReward)
 	default:
 		return nil, errors.New("not a valid block type")
 	}
@@ -221,9 +252,9 @@ func (bcv *BlockChainValidator) validateNewAccountBlockOps(bcs []*crypto.BlockOp
 		var txFee Balance
 		switch tx.Type {
 		case crypto.CreateFile:
-			txFee = bcv.cnf.createFee
+			txFee = bcv.cnf.CreateFee
 		case crypto.AppendFile:
-			txFee = bcv.cnf.appendFee
+			txFee = bcv.cnf.AppendFee
 		default:
 			return []*crypto.BlockOp{}, errors.New("not a valid file op")
 		}

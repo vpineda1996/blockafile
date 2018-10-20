@@ -390,7 +390,7 @@ func TestConfirmationTree(t *testing.T) {
 		}
 		tree.PrependElement(ee, hd)
 	}
-	t.Run("high confirmsPerFileCreate/Append, nothing is stored in fsState", func(t *testing.T) {
+	t.Run("high ConfirmsPerFileCreate/Append, nothing is stored in fsState", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 1,
 			roots: 1,
@@ -419,7 +419,7 @@ func TestConfirmationTree(t *testing.T) {
 		equals(t, (*FileInfo)(nil), fs["c"])
 	})
 
-	t.Run("high confirmsPerFileAppend, low confirmsPerFileCreate, all creates stored eventually", func(t *testing.T) {
+	t.Run("high ConfirmsPerFileAppend, low ConfirmsPerFileCreate, all creates stored eventually", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 1,
 			roots: 1,
@@ -463,7 +463,7 @@ func TestConfirmationTree(t *testing.T) {
 		equals(t, make([]byte, 0, crypto.DataBlockSize), []byte(fs["c"].Data))
 	})
 
-	t.Run("low confirmsPerFileCreate/Append, all ops stored eventually", func(t *testing.T) {
+	t.Run("low ConfirmsPerFileCreate/Append, all ops stored eventually", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 1,
 			roots: 1,
@@ -520,7 +520,7 @@ func TestConfirmationTree(t *testing.T) {
 		equals(t, datum[1][:], []byte(fs["c"].Data)[crypto.DataBlockSize:])
 	})
 
-	t.Run("recreate fsState with different settings for confirmsPerFileCreate/Append", func (t *testing.T) {
+	t.Run("recreate fsState with different settings for ConfirmsPerFileCreate/Append", func (t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 1,
 			roots: 1,
