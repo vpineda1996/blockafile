@@ -98,7 +98,6 @@ func generateState(
 			}
 			// do not award any currency to anybody
 		case crypto.RegularBlock:
-			// TODO ksenia what should be first, award and then spend or vice-versa
 			// award to miner
 			award(res, Account(bae.Block.MinerId), opReward)
 

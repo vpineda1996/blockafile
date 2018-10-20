@@ -4,21 +4,18 @@ import (
 	"../../crypto"
 	"../api"
 	. "../block_calculators"
+	"crypto/md5"
+	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
-type MinerState interface {
-	GetBlock(id string) (*crypto.Block, bool)
-	GetFilesystemState(confirmsPerFileCreate int, confirmsPerFileAppend int) (FilesystemState, error)
-	GetRoots() []*crypto.Block
-	GetAccountState(appendFee int, createFee int, opReward int, noOpReward int) (AccountsState, error)
-}
-
-type MinerStateImpl struct {
-	tm *TreeManager
+type MinerState struct {
+	// dont ask of the double ptr, its cancer but there is no other way
+	tm **TreeManager
 	clients []*api.MinerClient
-	bc *BlockCalculator
+	bc **BlockCalculator
 	minerId string
 }
 
@@ -33,35 +30,35 @@ type Config struct {
 	confirmsPerFileAppend int
 	opPerBlock            int
 	minerId               string
+	genesisBlockHash	  [md5.Size]byte
+	GenOpBlockTimeout     uint8
 }
 
 var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
 
-func (s MinerStateImpl) GetFilesystemState(
+func (s MinerState) GetFilesystemState(
 	confirmsPerFileCreate int,
 	confirmsPerFileAppend int) (FilesystemState, error) {
-	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, s.tm.GetLongestChain())
+	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, (*s.tm).GetLongestChain())
 }
 
-func (s MinerStateImpl) GetBlock(id string) (*crypto.Block, bool){
-	return s.tm.GetBlock(id)
+func (s MinerState) GetBlock(id string) (*crypto.Block, bool){
+	return (*s.tm).GetBlock(id)
 }
 
-
-
-func (s MinerStateImpl) GetRoots() []*crypto.Block {
-	return s.tm.GetRoots()
+func (s MinerState) GetRoots() []*crypto.Block {
+	return (*s.tm).GetRoots()
 }
 
-func (s MinerStateImpl) GetAccountState(
+func (s MinerState) GetAccountState(
 	appendFee int,
 	createFee int,
 	opReward int,
 	noOpReward int) (AccountsState, error) {
-	return NewAccountsState(appendFee, createFee, opReward, noOpReward, s.tm.GetLongestChain())
+	return NewAccountsState(appendFee, createFee, opReward, noOpReward, (*s.tm).GetLongestChain())
 }
 
-func (s MinerStateImpl) GetRemoteBlock(id string) (*crypto.Block, bool) {
+func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
 	for _, c := range s.clients {
 		nd, ok, err := c.GetBlock(id)
 		if err != nil {
@@ -76,7 +73,7 @@ func (s MinerStateImpl) GetRemoteBlock(id string) (*crypto.Block, bool) {
 	return nil, false
 }
 
-func (s MinerStateImpl) GetRemoteRoots() ([]*crypto.Block) {
+func (s MinerState) GetRemoteRoots() ([]*crypto.Block) {
 	blocks := make(map[string]*crypto.Block)
 	for _, c := range s.clients {
 		arr, err := c.GetRoots()
@@ -100,26 +97,26 @@ func (s MinerStateImpl) GetRemoteRoots() ([]*crypto.Block) {
 }
 
 // call from the tree when a block was confirmed and added to the tree
-func (s MinerStateImpl) OnNewBlockInTree(b *crypto.Block) {
+func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
 	// notify calculators
-	s.bc.RemoveJobsFromBlock(b)
+	(*s.bc).RemoveJobsFromBlock(b)
 }
 
-func (s MinerStateImpl) OnNewBlockInLongestChain(b *crypto.Block) {
+func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 	// todo notify to any listener
 }
 
-func (s MinerStateImpl) AddBlock(b *crypto.Block) {
+func (s MinerState) AddBlock(b *crypto.Block) {
 	lg.Printf("added new block: %x", b.Hash())
 	// add it to the tree manager and then broadcast the block
-	s.tm.AddBlock(crypto.BlockElement{
+	(*s.tm).AddBlock(crypto.BlockElement{
 		Block: b,
 	})
 	// bkst block
 	s.broadcastBlock(b)
 }
 
-func (s MinerStateImpl) broadcastBlock(b *crypto.Block) {
+func (s MinerState) broadcastBlock(b *crypto.Block) {
 	go func() {
 		for _, c := range s.clients {
 			c.SendBlock(b)
@@ -127,13 +124,14 @@ func (s MinerStateImpl) broadcastBlock(b *crypto.Block) {
 	}()
 }
 
-func (s MinerStateImpl) AddJob(b *crypto.BlockOp) {
+func (s MinerState) AddJob(b *crypto.BlockOp) {
 	lg.Printf("added new job: %v", b)
 	// todo vpineda add job to miners
+	(*s.bc).AddJob(b)
 	s.broadcastJob(b)
 }
 
-func (s MinerStateImpl) broadcastJob(b *crypto.BlockOp) {
+func (s MinerState) broadcastJob(b *crypto.BlockOp) {
 	go func() {
 		for _, c := range s.clients {
 			c.SendJob(b)
@@ -141,16 +139,16 @@ func (s MinerStateImpl) broadcastJob(b *crypto.BlockOp) {
 	}()
 }
 
-func (s MinerStateImpl) GetHighestRoot() *crypto.Block {
-	return s.tm.GetHighestRoot()
+func (s MinerState) GetHighestRoot() *crypto.Block {
+	return (*s.tm).GetHighestRoot()
 }
 
-func (s MinerStateImpl) GetMinerId() string {
+func (s MinerState) GetMinerId() string {
 	return s.minerId
 }
 
-func (s MinerStateImpl) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
-	panic("implement me")
+func (s MinerState) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
+	return (*s.tm).ValidateJobSet(bOps)
 }
 
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
@@ -161,21 +159,40 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 			cls = append(cls, &conn)
 		}
 	}
-	ms := MinerStateImpl{
+	var treePtr *TreeManager
+	var blockCalcPtr *BlockCalculator
+	ms := MinerState{
 		clients: cls,
 		minerId: config.minerId,
+		tm: &treePtr,
+		bc: &blockCalcPtr,
 	}
-	var err error
-	ms.tm = NewTreeManager(config, ms, ms)
+	treePtr = NewTreeManager(config, ms, ms)
+	blockCalcPtr = NewBlockCalculator(ms, config.numberOfZeros, config.opPerBlock, time.Duration(config.GenOpBlockTimeout))
+
+	// add genesis block
+	err := (*ms.tm).AddBlock(crypto.BlockElement{
+		Block: &crypto.Block{
+			Records: []*crypto.BlockOp{},
+			Type: crypto.GenesisBlock,
+			PrevBlock: config.genesisBlockHash,
+			Nonce: 0,
+			MinerId: "",
+		},
+	})
+
 	if err != nil {
-		panic(err)
+		panic("cannot add genesis block due to " + fmt.Sprint(err))
 	}
 
-	ms.bc = NewBlockCalculator(ms, config.numberOfZeros, config.opPerBlock)
+	// start threads
+	(*ms.tm).StartThreads()
+	(*ms.bc).StartThreads()
 
 	err = api.InitMinerServer(config.address, ms)
 	if err != nil {
 		panic("cannot init server twice!")
 	}
+
 	return ms
 }

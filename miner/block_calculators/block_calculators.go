@@ -29,6 +29,7 @@ type BlockCalculator struct {
 	mtx             *sync.Mutex
 	opsPerBlock     int
 	numberOfZeros   int
+	timePerBlockTimeoutMillis time.Duration
 }
 
 var lg = log.New(os.Stdout, "calculators: ", log.Lmicroseconds|log.Lshortfile)
@@ -48,11 +49,13 @@ func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
 	for _, rc := range block.Records {
-		hpIdx := bc.jobSet.Find(func(j interface{}) bool {
+		eqFn := func(j interface{}) bool {
 			job := j.(*crypto.BlockOp)
-			return reflect.DeepEqual(job, *rc)
-		})
-		heap.Remove(bc.jobSet, hpIdx)
+			return reflect.DeepEqual(*job, *rc)
+		}
+		for hpIdx := bc.jobSet.Find(eqFn); hpIdx >=0; hpIdx = bc.jobSet.Find(eqFn) {
+			heap.Remove(bc.jobSet, hpIdx)
+		}
 	}
 }
 
@@ -73,7 +76,7 @@ func NoOpCalculator(bc *BlockCalculator) {
 			lg.Printf("No-op calculator found a block")
 			bc.listener.AddBlock(newBlock)
 		}
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * bc.timePerBlockTimeoutMillis)
 	}
 }
 func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *bool) *crypto.Block {
@@ -109,7 +112,7 @@ func JobsCalculator(bc *BlockCalculator) {
 			bc.noopSuspended = false
 		}
 
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * bc.timePerBlockTimeoutMillis)
 	}
 }
 
@@ -125,12 +128,13 @@ func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 }
 
 
-func NewBlockCalculator(state BlockCalculatorListener, numberOfZeros int, opsPerBlock int) *BlockCalculator {
+func NewBlockCalculator(state BlockCalculatorListener, numberOfZeros int, opsPerBlock int, blockTimeout time.Duration) *BlockCalculator {
 	return &BlockCalculator{
 		jobSet:      new(datastruct.PriorityQueue),
 		listener:    state,
 		mtx:         new(sync.Mutex),
 		numberOfZeros: numberOfZeros,
 		opsPerBlock: opsPerBlock,
+		timePerBlockTimeoutMillis: blockTimeout,
 	}
 }

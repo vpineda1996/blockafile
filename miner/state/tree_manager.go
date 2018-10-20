@@ -109,6 +109,20 @@ func (t *TreeManager) GetLongestChain() *datastruct.Node {
 	return t.mTree.GetLongestChain()
 }
 
+func (t *TreeManager) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
+	return t.mTree.ValidateJobSet(bOps)
+}
+
+func (t *TreeManager) ShutdownThreads() {
+	t.shutdownThreads = true
+}
+
+func (t *TreeManager) StartThreads() {
+	t.shutdownThreads = false
+	go FindNodeThread(t)
+	go UpdateRootsThread(t)
+}
+
 
 func blockAdderHelper(t* TreeManager, b crypto.BlockElement) bool {
 	// the block is a genesis block no need to check children add it directly
@@ -212,8 +226,6 @@ func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *Tree
 		findBlockNotify: make(chan bool),
 		shutdownThreads: false,
 	}
-	go FindNodeThread(tm)
-	go UpdateRootsThread(tm)
 	return tm
 }
 
@@ -262,4 +274,8 @@ func (b BlockChainTree) ValidateBlock(blk *crypto.Block) bool{
 
 func (b BlockChainTree) GetRoots() []*datastruct.Node{
 	return b.mTree.GetRoots()
+}
+
+func (b BlockChainTree) ValidateJobSet(ops []*crypto.BlockOp) []*crypto.BlockOp {
+	return b.validator.ValidateJobSet(ops, b.mTree.GetLongestChain())
 }

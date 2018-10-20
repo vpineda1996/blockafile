@@ -701,6 +701,7 @@ func TestBlockRetrieval(t *testing.T) {
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
+		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head)
@@ -762,6 +763,7 @@ func TestBlockRetrieval(t *testing.T) {
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
+		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head)
@@ -823,6 +825,7 @@ func TestBlockRetrieval(t *testing.T) {
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
+		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head)
@@ -903,6 +906,7 @@ func TestBlockRetrieval(t *testing.T) {
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
+		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head2)
@@ -986,6 +990,7 @@ func TestBlockRetrieval(t *testing.T) {
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
+		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
 
 		err := tree.AddBlock(head2)
@@ -1030,13 +1035,14 @@ func TestOnBlockListeners(t *testing.T) {
 			counterRR: new(int),
 		}
 
-		NewTreeManager(Config{
+		tm := NewTreeManager(Config{
 			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
 			createFee: 1,
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, ob)
+		tm.StartThreads()
 		time.Sleep(time.Millisecond * 100)
 
 		// retrieve node implicitly via getRoots thread

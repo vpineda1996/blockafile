@@ -80,7 +80,7 @@ func TestBlockGeneration(t *testing.T) {
 			getHighestRoot: new(int),
 			validate:       new(int),
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
 		bc.StartThreads()
 		time.Sleep(time.Second)
 		bc.ShutdownThreads()
@@ -98,7 +98,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:       new(int),
 			blockOps: validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
 		bc.StartThreads()
 		bc.AddJob(validBlockOps[0])
 		time.Sleep(time.Second)
@@ -116,7 +116,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:       new(int),
 			blockOps: validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
 		for i := 0; i < 21; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -136,7 +136,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:       new(int),
 			blockOps: validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -146,6 +146,29 @@ func TestBlockGeneration(t *testing.T) {
 
 		assert(t, *listener.addBlockRegular > 1, "should add 1 more")
 		equals(t, 0, *listener.addBlockNoop)
+	})
+
+	t.Run("removes repeated jobs when deleting a job", func(t *testing.T) {
+		listener := blkGenList{
+			addBlockNoop:   new(int),
+			addBlockRegular: new(int),
+			getMinerId:     new(int),
+			getHighestRoot: new(int),
+			validate:       new(int),
+			blockOps: validBlockOps,
+		}
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		for i := 0; i < 300; i++ {
+			bc.AddJob(validBlockOps[0])
+		}
+		bc.RemoveJobsFromBlock(&Block{
+			Records:validBlockOps,
+		})
+		bc.StartThreads()
+		time.Sleep(time.Second)
+		bc.ShutdownThreads()
+
+		equals(t, 0, *listener.addBlockRegular)
 	})
 }
 

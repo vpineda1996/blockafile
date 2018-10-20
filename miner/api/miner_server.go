@@ -30,6 +30,9 @@ type GetNodeRes struct {
 	Found bool
 }
 
+
+// TODO SUPER IMPORTANT EVERY TIME THAT SOMEONE CALLS US ADD IT TO LIST OF CLIENTS!!!!!!
+
 func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error  {
 	bk, ok := m.listener.GetBlock(args.Id)
 	*res = GetNodeRes{
