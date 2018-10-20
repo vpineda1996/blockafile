@@ -15,7 +15,7 @@ type BlockRetriever interface {
 }
 
 type TreeChangeListener interface {
-	OnNewBlock(b *crypto.Block)
+	OnNewBlockInTree(b *crypto.Block)
 	OnNewBlockInLongestChain(b *crypto.Block)
 }
 
@@ -95,6 +95,10 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	default:
 	}
 	return nil
+}
+
+func (t *TreeManager) GetHighestRoot() *crypto.Block {
+	return t.mTree.GetLongestChain().Value.(crypto.BlockElement).Block
 }
 
 func (t *TreeManager) ValidateBlock(b *crypto.Block) bool{
@@ -237,7 +241,7 @@ func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error)
 		return nil, err
 	}
 
-	b.tcl.OnNewBlock(block.Block)
+	b.tcl.OnNewBlockInTree(block.Block)
 	if b.GetLongestChain().Id == block.Id() {
 		b.tcl.OnNewBlockInLongestChain(block.Block)
 	}

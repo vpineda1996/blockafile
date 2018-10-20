@@ -3,6 +3,7 @@ package state
 import (
 	"../../crypto"
 	"../api"
+	. "../block_calculators"
 	"log"
 	"os"
 )
@@ -17,17 +18,21 @@ type MinerState interface {
 type MinerStateImpl struct {
 	tm *TreeManager
 	clients []*api.MinerClient
+	bc *BlockCalculator
+	minerId string
 }
 
 type Config struct {
-	appendFee Balance // Note that this is not user-configured. Always exactly 1 coin.
-	createFee Balance
-	opReward Balance
-	noOpReward Balance
-	numberOfZeros int
-	address string
+	appendFee             Balance // Note that this is not user-configured. Always exactly 1 coin.
+	createFee             Balance
+	opReward              Balance
+	noOpReward            Balance
+	numberOfZeros         int
+	address               string
 	confirmsPerFileCreate int
 	confirmsPerFileAppend int
+	opPerBlock            int
+	minerId               string
 }
 
 var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
@@ -42,9 +47,7 @@ func (s MinerStateImpl) GetBlock(id string) (*crypto.Block, bool){
 	return s.tm.GetBlock(id)
 }
 
-func (t *TreeManager) GetHighestRoot() *crypto.Block {
-	return t.mTree.GetLongestChain().Value.(crypto.BlockElement).Block
-}
+
 
 func (s MinerStateImpl) GetRoots() []*crypto.Block {
 	return s.tm.GetRoots()
@@ -96,12 +99,14 @@ func (s MinerStateImpl) GetRemoteRoots() ([]*crypto.Block) {
 	return blockArr
 }
 
-func (s MinerStateImpl) OnNewBlock(b *crypto.Block) {
-	panic("implement me")
+// call from the tree when a block was confirmed and added to the tree
+func (s MinerStateImpl) OnNewBlockInTree(b *crypto.Block) {
+	// notify calculators
+	s.bc.RemoveJobsFromBlock(b)
 }
 
 func (s MinerStateImpl) OnNewBlockInLongestChain(b *crypto.Block) {
-	panic("implement me")
+	// todo notify to any listener
 }
 
 func (s MinerStateImpl) AddBlock(b *crypto.Block) {
@@ -136,6 +141,18 @@ func (s MinerStateImpl) broadcastJob(b *crypto.BlockOp) {
 	}()
 }
 
+func (s MinerStateImpl) GetHighestRoot() *crypto.Block {
+	return s.tm.GetHighestRoot()
+}
+
+func (s MinerStateImpl) GetMinerId() string {
+	return s.minerId
+}
+
+func (s MinerStateImpl) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
+	panic("implement me")
+}
+
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	cls := make([]*api.MinerClient, 0, len(connectedMiningNodes))
 	for _, c := range connectedMiningNodes {
@@ -146,12 +163,15 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	}
 	ms := MinerStateImpl{
 		clients: cls,
+		minerId: config.minerId,
 	}
 	var err error
 	ms.tm = NewTreeManager(config, ms, ms)
 	if err != nil {
 		panic(err)
 	}
+
+	ms.bc = NewBlockCalculator(ms, config.numberOfZeros, config.opPerBlock)
 
 	err = api.InitMinerServer(config.address, ms)
 	if err != nil {

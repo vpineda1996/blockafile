@@ -82,7 +82,7 @@ type fakeNodeRetrievier struct {
 
 }
 
-func (fakeNodeRetrievier) OnNewBlock(b *crypto.Block) {
+func (fakeNodeRetrievier) OnNewBlockInTree(b *crypto.Block) {
 }
 
 func (fakeNodeRetrievier) OnNewBlockInLongestChain(b *crypto.Block) {
@@ -1008,7 +1008,7 @@ type obl struct {
 	newll *int
 }
 
-func (o obl) OnNewBlock(b *crypto.Block) {
+func (o obl) OnNewBlockInTree(b *crypto.Block) {
 	*o.newb += 1
 }
 

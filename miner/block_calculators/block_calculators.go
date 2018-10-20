@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"container/heap"
 	"crypto/md5"
+	"log"
+	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -15,7 +17,6 @@ type BlockCalculatorListener interface {
 	AddBlock(b *crypto.Block)
 	GetRoots() []*crypto.Block
 	GetHighestRoot() *crypto.Block
-	GetTargetZeros() int
 	GetMinerId() string
 	ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp
 }
@@ -27,13 +28,19 @@ type BlockCalculator struct {
 	shutdownThreads bool
 	mtx             *sync.Mutex
 	opsPerBlock     int
+	numberOfZeros   int
 }
 
-func (bc *BlockCalculator) AddJob(b crypto.BlockOp) {
+var lg = log.New(os.Stdout, "calculators: ", log.Lmicroseconds|log.Lshortfile)
+
+func (bc *BlockCalculator) AddJob(b *crypto.BlockOp) {
 	bc.noopSuspended = true
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
-	heap.Push(bc.jobSet, b)
+	item := datastruct.Item{
+		Value: b,
+	}
+	heap.Push(bc.jobSet, &item)
 }
 
 
@@ -42,7 +49,7 @@ func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
 	defer bc.mtx.Unlock()
 	for _, rc := range block.Records {
 		hpIdx := bc.jobSet.Find(func(j interface{}) bool {
-			job := j.(crypto.BlockOp)
+			job := j.(*crypto.BlockOp)
 			return reflect.DeepEqual(job, *rc)
 		})
 		heap.Remove(bc.jobSet, hpIdx)
@@ -53,13 +60,20 @@ func (bc *BlockCalculator) ShutdownThreads() {
 	bc.shutdownThreads = true
 }
 
+func (bc *BlockCalculator) StartThreads() {
+	bc.shutdownThreads = false
+	go NoOpCalculator(bc)
+	go JobsCalculator(bc)
+}
+
 func NoOpCalculator(bc *BlockCalculator) {
 	for !bc.shutdownThreads {
 		newBlock := generateNewBlock(bc, []*crypto.BlockOp{}, &bc.noopSuspended)
 		if !bc.noopSuspended && bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
+			lg.Printf("No-op calculator found a block")
 			bc.listener.AddBlock(newBlock)
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond * 100)
 	}
 }
 func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *bool) *crypto.Block {
@@ -73,7 +87,7 @@ func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *b
 		Records: ops,
 		PrevBlock: rootHash,
 	}
-	bk.FindNonceWithStopSignal(bc.listener.GetTargetZeros(), suspendBool)
+	bk.FindNonceWithStopSignal(bc.numberOfZeros, suspendBool)
 	return &bk
 }
 
@@ -88,13 +102,14 @@ func JobsCalculator(bc *BlockCalculator) {
 
 			// once we found a block send it and remove those jobs form the queue
 			if bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
+				lg.Printf("Jobs calculator found a block")
 				bc.listener.AddBlock(newBlock)
 			}
 		} else {
 			bc.noopSuspended = false
 		}
 
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond * 500)
 	}
 }
 
@@ -102,19 +117,20 @@ func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 	bc.mtx.Lock()
 	bOps := make([]*crypto.BlockOp, 0, bc.opsPerBlock)
 	for i := 0; i < bc.opsPerBlock && bc.jobSet.Len() > 0; i++ {
-		blk := heap.Pop(bc.jobSet).(crypto.BlockOp)
-		bOps = append(bOps, &blk)
+		blk := heap.Pop(bc.jobSet).(*datastruct.Item).Value.(*crypto.BlockOp)
+		bOps = append(bOps, blk)
 	}
 	bc.mtx.Unlock()
 	return bc.listener.ValidateJobSet(bOps)
 }
 
 
-func NewBlockCalculator(state BlockCalculatorListener, opsPerBlock int) *BlockCalculator {
+func NewBlockCalculator(state BlockCalculatorListener, numberOfZeros int, opsPerBlock int) *BlockCalculator {
 	return &BlockCalculator{
 		jobSet:      new(datastruct.PriorityQueue),
 		listener:    state,
 		mtx:         new(sync.Mutex),
+		numberOfZeros: numberOfZeros,
 		opsPerBlock: opsPerBlock,
 	}
 }

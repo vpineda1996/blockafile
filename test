@@ -15,4 +15,5 @@ testFolder() {
 testFolder crypto
 testFolder miner/api
 testFolder miner/state
+testFolder miner/block_calculators
 testFolder shared/datastruct
