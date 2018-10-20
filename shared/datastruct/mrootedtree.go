@@ -114,7 +114,7 @@ func (t *MRootTree) PrependElement(e Element, head *Node) (*Node, error) {
 	}
 
 	// check who is the longest
-	if newNode.Height > t.Height {
+	if newNode.Height >= t.Height {
 		lg.Printf("New height %v", newNode.Height)
 		t.longestChainHead = &newNode
 		t.Height = newNode.Height

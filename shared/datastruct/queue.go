@@ -42,6 +42,35 @@ func (queue *Queue) IsInQueue(eq func(QueueElement) bool) bool {
 	return false
 }
 
+func (queue *Queue) Len() int {
+	return len(queue.dequeue.arr) + len(queue.enqueue.arr)
+}
+
+func (queue *Queue) Del(eq func(QueueElement) bool) bool {
+	for i, v := range queue.dequeue.arr {
+		if eq(v) {
+			if i < len(queue.dequeue.arr) - 1 {
+				queue.dequeue.arr = append(queue.dequeue.arr[:i], queue.dequeue.arr[i+1:])
+			} else {
+				queue.dequeue.arr = queue.dequeue.arr[:i]
+			}
+			return true
+		}
+		
+	}
+	for i, v := range queue.enqueue.arr {
+		if eq(v) {
+			if i < len(queue.enqueue.arr) - 1 {
+				queue.enqueue.arr = append(queue.enqueue.arr[:i], queue.enqueue.arr[i+1:])
+			} else {
+				queue.enqueue.arr = queue.enqueue.arr[:i]
+			}
+			return true
+		}
+	}
+	return false
+}
+
 type Stack struct{
 	arr []QueueElement
 }

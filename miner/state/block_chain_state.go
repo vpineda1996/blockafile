@@ -46,7 +46,7 @@ func NewAccountsState(
 			accounts: make(map[Account]Balance),
 		}, nil
 	}
-	lg.Printf("Creating new blockchain state with %v as top", nd.Id)
+	lg.Printf("Creating new account state with %v reward and %v as top", opReward, nd.Id)
 	nds := transverseChain(nd)
 	st, err := generateState(
 		Balance(appendFee),
@@ -157,5 +157,4 @@ func award(accs map[Account]Balance, act Account, rw Balance) {
 	} else {
 		accs[act] = rw
 	}
-	lg.Printf("Account %v got awarded %v, balance: %v", act, rw, accs[act])
 }

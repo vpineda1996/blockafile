@@ -82,6 +82,10 @@ func (b *Block) Hash() []byte {
 	return b.hash(b.serialize())
 }
 
+func (b *Block) Id() string {
+	return fmt.Sprintf("%x", b.Hash())
+}
+
 func (b *Block) valid(ser []byte, zeros int) bool {
 	hash := b.hash(ser)
 	for i := len(hash) - 1; i >= 0 && zeros > 0; zeros, i = zeros - 8, i - 1 {
@@ -151,5 +155,5 @@ func (b BlockElement) ParentId() string {
 }
 
 func (b BlockElement) Id() string {
-	return fmt.Sprintf("%x", b.Block.Hash())
+	return b.Block.Id()
 }

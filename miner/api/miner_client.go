@@ -16,12 +16,12 @@ type MinerClient struct {
 
 var lg = log.New(os.Stdout, "minerC: ", log.Lshortfile)
 
-func (m MinerClient) GetNode(id string) (*crypto.Block, bool, error) {
+func (m MinerClient) GetBlock(id string) (*crypto.Block, bool, error) {
 	args := GetNodeArgs{Id: id}
 	ans := new(GetNodeRes)
 
 	c := make(chan error, 1)
-	go func() { c <- m.client.Call("MinerServer.GetNode", args, &ans) } ()
+	go func() { c <- m.client.Call("MinerServer.GetBlock", args, &ans) } ()
 
 	// todo vpineda tcp should detect a failure on the connection or just wait for 5 seconds
 	select {
@@ -67,7 +67,7 @@ func (MinerClient) GetOtherHosts() []string {
 	panic("")
 }
 
-func (m MinerClient) SendNode(block *crypto.Block) {
+func (m MinerClient) SendBlock(block *crypto.Block) {
 	args := ReceiveNodeArgs{
 		Block: *block,
 	}

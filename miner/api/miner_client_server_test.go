@@ -12,7 +12,7 @@ import (
 type fakeState struct {
 }
 
-func (fakeState) GetNode(id string) (*crypto.Block, bool) {
+func (fakeState) GetBlock(id string) (*crypto.Block, bool) {
 	return &bk, true
 }
 
@@ -71,7 +71,7 @@ func TestGetNodeTest(t *testing.T) {
 		t.Fail()
 	}
 
-	nd, ok, _ := c.GetNode("a")
+	nd, ok, _ := c.GetBlock("a")
 	if !ok {
 		t.Fail()
 	}
@@ -86,7 +86,7 @@ func TestAddNodeTest(t *testing.T) {
 		t.Fail()
 	}
 
-	c.SendNode(&bk)
+	c.SendBlock(&bk)
 }
 
 func TestGetRoots(t *testing.T) {

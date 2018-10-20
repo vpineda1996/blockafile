@@ -4,9 +4,13 @@ import (
 	"../../crypto"
 	"../../shared"
 	"crypto/md5"
+	"fmt"
 	"log"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
+	"time"
 )
 
 // add order : node where we insert first | the number of nodes we insert
@@ -74,6 +78,26 @@ func buildTreeWithManager(treeDef treeBuilderTest, tm *TreeManager) error {
 
 const numberOfZeros = 8
 
+type fakeNodeRetrievier struct {
+
+}
+
+func (fakeNodeRetrievier) OnNewBlock(b *crypto.Block) {
+}
+
+func (fakeNodeRetrievier) OnNewBlockInLongestChain(b *crypto.Block) {
+}
+
+func (fakeNodeRetrievier) GetRemoteBlock(id string) (*crypto.Block, bool) {
+	panic("implement me")
+}
+
+func (fakeNodeRetrievier) GetRemoteRoots() ([]*crypto.Block) {
+	return []*crypto.Block{}
+}
+
+var fkNodeRetriv = fakeNodeRetrievier{}
+
 func TestSimpleTreeManager(t *testing.T) {
 	t.Run("init works", func(t *testing.T) {
 		NewTreeManager(Config{
@@ -82,7 +106,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 	})
 
 	t.Run("simple tree with just the genesis block", func(t *testing.T) {
@@ -97,7 +121,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -122,7 +146,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -151,7 +175,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -180,7 +204,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -203,7 +227,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -226,7 +250,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -259,7 +283,7 @@ func TestSimpleTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -299,7 +323,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -340,7 +364,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -387,7 +411,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -434,7 +458,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -473,7 +497,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -515,7 +539,7 @@ func TestValidAccountState(t *testing.T) {
 			opReward: 500,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -540,7 +564,7 @@ func TestValidAccountState(t *testing.T) {
 			opReward: 1000,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err != nil {
@@ -565,7 +589,7 @@ func TestValidAccountState(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -588,7 +612,7 @@ func TestValidAccountState(t *testing.T) {
 			opReward: 1,
 			noOpReward: 1,
 			numberOfZeros: numberOfZeros,
-		})
+		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
 		if err == nil {
@@ -597,3 +621,481 @@ func TestValidAccountState(t *testing.T) {
 	})
 }
 
+type tNodeRetriever struct {
+	counterRB *int
+	counterRR *int
+	block *crypto.Block
+	block2 *crypto.Block
+}
+
+func (t tNodeRetriever) GetRemoteBlock(id string) (*crypto.Block, bool) {
+	*t.counterRB += 1
+	if fmt.Sprintf("%x", t.block.Hash()) == id {
+		return t.block, true
+	}
+	if t.block2 != nil && fmt.Sprintf("%x", t.block2.Hash()) == id  {
+		return t.block2, true
+	}
+	return nil, false
+}
+
+func (t tNodeRetriever) GetRemoteRoots() ([]*crypto.Block) {
+	*t.counterRR += 1
+	ee := crypto.BlockElement{
+		Block: &crypto.Block {
+			MinerId: strconv.Itoa(1),
+			Type: crypto.GenesisBlock,
+			PrevBlock: genBlockSeed,
+			Records: []*crypto.BlockOp{},
+			Nonce: 12324,
+		},
+	}
+	return []*crypto.Block{ee.Block}
+}
+
+var cGenBlockSeed = [md5.Size]byte{10, 2,1, 5}
+
+func TestBlockRetrieval(t *testing.T) {
+	t.Run("it gets the parent block", func(t *testing.T) {
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: genBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+
+		parent.Block.FindNonce(numberOfZeros)
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetriever{
+			block: parent.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct, fkNodeRetriv)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		equals(t, 1, *tNodeRetrivStruct.counterRB)
+
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 1, len(fs))
+		equals(t, "1", fs["potato"].Creator)
+	})
+
+	t.Run("discards block if parent is garbage", func(t *testing.T) {
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: genBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetriever{
+			block: parent.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct, fkNodeRetriv)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		equals(t, 1, *tNodeRetrivStruct.counterRB)
+
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+	})
+
+	t.Run("corrupt seed on node", func(t *testing.T) {
+
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: cGenBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+		parent.Block.FindNonce(numberOfZeros)
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetriever{
+			block: parent.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct, fkNodeRetriv)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+	})
+
+	t.Run("long chain works", func(t *testing.T) {
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: genBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+
+		parent.Block.FindNonce(numberOfZeros)
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+
+		head.Block.FindNonce(numberOfZeros)
+		head2Parent := [md5.Size]byte{}
+		copy(head2Parent[:], head.Block.Hash())
+
+		head2 := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: head2Parent,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato2",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head2.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetriever{
+			block: parent.Block,
+			block2: head.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct, fkNodeRetriv)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head2)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		equals(t, 2, *tNodeRetrivStruct.counterRB)
+
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 2, len(fs))
+		equals(t, "1", fs["potato"].Creator)
+	})
+
+	t.Run("fails gracefully with long chain", func(t *testing.T) {
+		parent := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: strconv.Itoa(1),
+				Type: crypto.NoOpBlock,
+				PrevBlock: cGenBlockSeed,
+				Records: []*crypto.BlockOp{},
+				Nonce: 12324,
+			},
+		}
+
+		parent.Block.FindNonce(numberOfZeros)
+		parentHs := [md5.Size]byte{}
+		copy(parentHs[:], parent.Block.Hash())
+
+		head := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: parentHs,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+
+		head.Block.FindNonce(numberOfZeros)
+		head2Parent := [md5.Size]byte{}
+		copy(head2Parent[:], head.Block.Hash())
+
+		head2 := crypto.BlockElement{
+			Block: &crypto.Block {
+				MinerId: "1",
+				Type: crypto.RegularBlock,
+				PrevBlock: head2Parent,
+				Records: []*crypto.BlockOp{{
+					Type: crypto.CreateFile,
+					RecordNumber: 0,
+					Filename: "potato2",
+					Creator: "1",
+					Data: [512]byte{},
+				}},
+				Nonce: 12324,
+			},
+		}
+		head2.Block.FindNonce(numberOfZeros)
+
+		var tNodeRetrivStruct = tNodeRetriever{
+			block: parent.Block,
+			block2: head.Block,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		tree := NewTreeManager(Config{
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct, fkNodeRetriv)
+		time.Sleep(time.Millisecond * 100)
+
+		err := tree.AddBlock(head2)
+		ok(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+
+		equals(t, 3, *tNodeRetrivStruct.counterRB)
+
+		fsState, err := NewFilesystemState(0, 0 , tree.GetLongestChain())
+		ok(t, err)
+
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+	})
+}
+
+type obl struct {
+	newb *int
+	newll *int
+}
+
+func (o obl) OnNewBlock(b *crypto.Block) {
+	*o.newb += 1
+}
+
+func (o obl) OnNewBlockInLongestChain(b *crypto.Block) {
+	*o.newll += 1
+}
+
+func TestOnBlockListeners(t *testing.T) {
+	t.Run("calls on new block when adding genesis block", func(t *testing.T) {
+		ob := obl{
+			newll: new(int),
+			newb: new(int),
+		}
+
+		var tNodeRetrivStruct = tNodeRetriever{
+			block: nil,
+			block2: nil,
+			counterRB: new(int),
+			counterRR: new(int),
+		}
+
+		NewTreeManager(Config{
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		}, tNodeRetrivStruct, ob)
+		time.Sleep(time.Millisecond * 100)
+
+		// retrieve node implicitly via getRoots thread
+
+		equals(t, 1, *ob.newb)
+		equals(t, 1, *ob.newll)
+	})
+
+	t.Run("multiple chains, only calls new root when adding to longest chain", func(t *testing.T) {
+		ob := obl{
+			newll: new(int),
+			newb: new(int),
+		}
+
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots: 1,
+			addOrder: []int{
+				// first chain
+				0, 100, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                       0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile),  0,
+				101, 5, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                       0,
+				106, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 1, int(crypto.CreateFile),  0,
+				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile),  0, // id 108
+
+				// divergence into another root
+				108, 2, 2, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                       0,
+				110, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile),  0,
+				111, 9, 1, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                       0,
+				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile),  1,
+
+				// appends happen on that branch but somebody decided to be evil
+				108, 79, 3, int(crypto.NoOpBlock),    0, 1, 0, 0, 0,                      0, // id 200
+				200, 1,  3, int(crypto.RegularBlock), 1, 3, 3, 2, int(crypto.AppendFile), 0,
+			},
+		}
+
+		tree := NewTreeManager(Config{
+			appendFee: shared.NUM_COINS_PER_FILE_APPEND,
+			createFee: 1,
+			opReward: 1,
+			noOpReward: 1,
+			numberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, ob)
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err != nil {
+			t.Fail()
+		}
+		equals(t, 202, *ob.newb)
+		equals(t, 202 - 12, *ob.newll)
+	})
+}
+
+// ok fails the test if an err is not nil.
+func ok(tb testing.TB, err error) {
+	if err != nil {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%str:%d: unexpected error: %str\033[39m\n\n", filepath.Base(file), line, err.Error())
+		tb.FailNow()
+	}
+}
