@@ -4,6 +4,8 @@ import (
 	"../../crypto"
 	"errors"
 	"fmt"
+	"github.com/DistributedClocks/GoVector/govec"
+	"github.com/DistributedClocks/GoVector/govec/vrpc"
 	"log"
 	"net/rpc"
 	"os"
@@ -12,6 +14,7 @@ import (
 
 type MinerClient struct {
 	client *rpc.Client
+	logger *govec.GoLog
 }
 
 var lg = log.New(os.Stdout, "minerC: ", log.Lshortfile)
@@ -88,12 +91,13 @@ func (m MinerClient) SendJob(block *crypto.BlockOp) {
 	m.client.Go("MinerServer.ReceiveJob", args, &ans, c)
 }
 
-func NewMinerClient(addr string) (MinerClient, error) {
-	c, err := rpc.DialHTTP("tcp", addr)
+func NewMinerClient(addr string, logger *govec.GoLog) (MinerClient, error) {
+	c, err := vrpc.RPCDial("tcp", addr, logger, govec.GetDefaultLogOptions())
 	if err != nil {
 		return MinerClient{}, err
 	}
 	return MinerClient{
 		client: c,
+		logger: logger,
 	}, nil
 }

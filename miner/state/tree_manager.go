@@ -98,6 +98,11 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	return nil
 }
 
+func (t* TreeManager) Exists(b *crypto.Block) bool {
+	_, exists := t.mTree.Find(b.Id())
+	return exists
+}
+
 func (t *TreeManager) GetHighestRoot() *crypto.Block {
 	cpy := *t.mTree.GetLongestChain().Value.(crypto.BlockElement).Block
 	return &cpy

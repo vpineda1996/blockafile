@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+which go 2>&1  &> /dev/null
+if [ $? -gt 0 ]
+then
+	echo Cannot find go, exiting
+	exit 1
+fi
+
+go list github.com/DistributedClocks/GoVector &> /dev/null
+if [ $? -gt 0 ]
+then
+	echo GoVector package not detected
+	go get -u github.com/DistributedClocks/GoVector
+fi
+
+echo Installation Complete!

@@ -48,16 +48,20 @@ func (bc *BlockCalculator) AddJob(b *crypto.BlockOp) {
 	heap.Push(bc.jobSet, &item)
 }
 
+func (bc *BlockCalculator) JobExists(b *crypto.BlockOp) int {
+	eqFn := func(j interface{}) bool {
+		job := j.(*crypto.BlockOp)
+		return reflect.DeepEqual(*job, *b)
+	}
+	return bc.jobSet.Find(eqFn)
+}
+
 
 func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
 	for _, rc := range block.Records {
-		eqFn := func(j interface{}) bool {
-			job := j.(*crypto.BlockOp)
-			return reflect.DeepEqual(*job, *rc)
-		}
-		for hpIdx := bc.jobSet.Find(eqFn); hpIdx >=0; hpIdx = bc.jobSet.Find(eqFn) {
+		for hpIdx := bc.JobExists(rc); hpIdx >=0; hpIdx = bc.JobExists(rc) {
 			heap.Remove(bc.jobSet, hpIdx)
 		}
 	}

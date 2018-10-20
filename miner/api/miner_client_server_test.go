@@ -3,6 +3,7 @@ package api
 import (
 	"../../crypto"
 	"fmt"
+	"github.com/DistributedClocks/GoVector/govec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -53,11 +54,20 @@ var bk = crypto.Block{
 }
 
 var state = fakeState{}
-
+var opts = govec.GoLogConfig{
+	Buffered:      false,
+	PrintOnScreen: false,
+	AppendLog:     false,
+	UseTimestamps: true,
+	LogToFile:     true,
+	Priority:      govec.INFO,
+}
+var loggerS = govec.InitGoVector("serv", "test", opts)
+var loggerV = govec.InitGoVector("client", "test2", opts)
 var host = ":1222"
 
 func init(){
-	var e = InitMinerServer(host, state)
+	var e = InitMinerServer(host, state, loggerS)
 	if e != nil {
 		panic("couldnt init server")
 	}
@@ -65,7 +75,7 @@ func init(){
 
 
 func TestGetNodeTest(t *testing.T) {
-	c, err := NewMinerClient("localhost" + host)
+	c, err := NewMinerClient("localhost" + host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -80,7 +90,7 @@ func TestGetNodeTest(t *testing.T) {
 }
 
 func TestAddNodeTest(t *testing.T) {
-	c, err := NewMinerClient("localhost" + host)
+	c, err := NewMinerClient("localhost" + host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -90,7 +100,7 @@ func TestAddNodeTest(t *testing.T) {
 }
 
 func TestGetRoots(t *testing.T) {
-	c, err := NewMinerClient("localhost" + host)
+	c, err := NewMinerClient("localhost" + host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -101,7 +111,7 @@ func TestGetRoots(t *testing.T) {
 }
 
 func TestSendJob(t *testing.T) {
-	c, err := NewMinerClient("localhost" + host)
+	c, err := NewMinerClient("localhost" + host, loggerV)
 
 	if err != nil {
 		t.Fail()

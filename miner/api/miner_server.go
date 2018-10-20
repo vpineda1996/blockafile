@@ -3,9 +3,10 @@ package api
 import (
 	"../../crypto"
 	"errors"
+	"github.com/DistributedClocks/GoVector/govec"
+	"github.com/DistributedClocks/GoVector/govec/vrpc"
 	"log"
 	"net"
-	"net/http"
 	"net/rpc"
 )
 
@@ -19,6 +20,7 @@ type MinerServerListener interface {
 
 type MinerServer struct {
 	listener MinerServerListener
+	logger *govec.GoLog
 }
 
 type GetNodeArgs struct {
@@ -75,16 +77,19 @@ func (m *MinerServer) ReceiveJob(args *ReceiveJobArgs, res *bool) error {
 	return nil
 }
 
-func InitMinerServer(addr string, state MinerServerListener) error {
-	ms := new(MinerServer)
-	ms.listener = state
-	rpc.Register(ms)
-	rpc.HandleHTTP()
+func InitMinerServer(addr string, state MinerServerListener, logger *govec.GoLog) error {
+	ms := &MinerServer{
+		logger: logger,
+		listener: state,
+	}
+	server := rpc.NewServer()
+	server.Register(ms)
+
 	l, e := net.Listen("tcp", addr)
 	if e != nil {
 		log.Fatal("listen error:", e)
 		return e
 	}
-	go http.Serve(l, nil)
+	go vrpc.ServeRPCConn(server, l, logger, govec.GetDefaultLogOptions())
 	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	. "../shared"
+	"./state"
 	"log"
 	"os"
 	"sync"
@@ -38,7 +39,7 @@ func main() {
 }
 
 type MinerInstance struct {
-	// TODO. Fields
+	ms state.MinerState
 }
 
 // errorType can be one of: FILE_EXISTS, BAD_FILENAME, NO_ERROR
