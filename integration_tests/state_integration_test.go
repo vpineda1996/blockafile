@@ -14,18 +14,18 @@ import (
 )
 
 var config = Config{
-	GenesisBlockHash: [md5.Size]byte{1, 2, 3, 4, 5},
-	NumberOfZeros: 16,
-	MinerId: "1",
-	Address: ":8080",
-	AppendFee: 1,
+	GenesisBlockHash:      [md5.Size]byte{1, 2, 3, 4, 5},
+	NumberOfZeros:         16,
+	MinerId:               "1",
+	Address:               ":8080",
+	AppendFee:             1,
 	ConfirmsPerFileAppend: 3,
 	ConfirmsPerFileCreate: 5,
-	CreateFee: 2,
-	NoOpReward: 1,
-	OpPerBlock: 3,
-	OpReward: 2,
-	GenOpBlockTimeout: 100,
+	CreateFee:             2,
+	NoOpReward:            1,
+	OpPerBlock:            3,
+	OpReward:              2,
+	GenOpBlockTimeout:     100,
 }
 
 var connectingNodes = []string{}
@@ -37,7 +37,6 @@ func TestMinerState(t *testing.T) {
 	// wait for some no-op blocks to be generated
 	time.Sleep(time.Second)
 
-
 	// ----------------------------------------------------
 	// no-op mining thread is running
 	roots := s.GetRoots()
@@ -46,14 +45,13 @@ func TestMinerState(t *testing.T) {
 	equals(t, crypto.NoOpBlock, roots[0].Type)
 	equals(t, config.MinerId, roots[0].MinerId)
 
-
 	// ----------------------------------------------------
 	// create new job
 	job := crypto.BlockOp{
-		Type: crypto.CreateFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile",
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
@@ -66,19 +64,19 @@ func TestMinerState(t *testing.T) {
 	// ----------------------------------------------
 	// process two jobs at a time
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile",
 		RecordNumber: 1,
 	}
 	s.AddJob(job)
@@ -92,10 +90,10 @@ func TestMinerState(t *testing.T) {
 	// ----------------------------------------------
 	// handles jobs that are flawed -- create file
 	job = crypto.BlockOp{
-		Type: crypto.CreateFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile",
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile",
 		RecordNumber: 1,
 	}
 	s.AddJob(job)
@@ -109,10 +107,10 @@ func TestMinerState(t *testing.T) {
 	// ----------------------------------------------
 	// handles jobs that are flawed -- append
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{1, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{1, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile",
 		RecordNumber: 1,
 	}
 	s.AddJob(job)
@@ -127,19 +125,19 @@ func TestMinerState(t *testing.T) {
 	// respects order of ops inside block -- create and append
 
 	job = crypto.BlockOp{
-		Type: crypto.CreateFile,
-		Data: [crypto.DataBlockSize]byte{},
-		Creator: config.MinerId,
-		Filename: "myFile2",
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile2",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
@@ -154,46 +152,46 @@ func TestMinerState(t *testing.T) {
 	// respects order of ops inside block -- create and 3x append and ignore second creation
 
 	job = crypto.BlockOp{
-		Type: crypto.CreateFile,
-		Data: [crypto.DataBlockSize]byte{},
-		Creator: config.MinerId,
-		Filename: "myFile2",
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile2",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile2",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
 		RecordNumber: 1,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile2",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
 		RecordNumber: 2,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.CreateFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile2",
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
@@ -208,46 +206,46 @@ func TestMinerState(t *testing.T) {
 	// money validation fixes errors and deletes necessary
 
 	job = crypto.BlockOp{
-		Type: crypto.CreateFile,
-		Data: [crypto.DataBlockSize]byte{},
-		Creator: "alpha master",
-		Filename: "myFile3",
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{},
+		Creator:      "alpha master",
+		Filename:     "myFile3",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile3",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile3",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile3",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile3",
 		RecordNumber: 1,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.AppendFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile3",
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile3",
 		RecordNumber: 2,
 	}
 	s.AddJob(job)
 
 	job = crypto.BlockOp{
-		Type: crypto.CreateFile,
-		Data: [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
-		Creator: config.MinerId,
-		Filename: "myFile3",
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile3",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
@@ -287,4 +285,3 @@ func ok(tb testing.TB, err error) {
 		tb.FailNow()
 	}
 }
-

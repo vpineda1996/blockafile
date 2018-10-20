@@ -24,7 +24,7 @@ func (m MinerClient) GetBlock(id string) (*crypto.Block, bool, error) {
 	ans := new(GetNodeRes)
 
 	c := make(chan error, 1)
-	go func() { c <- m.client.Call("MinerServer.GetBlock", args, &ans) } ()
+	go func() { c <- m.client.Call("MinerServer.GetBlock", args, &ans) }()
 
 	// todo vpineda tcp should detect a failure on the connection or just wait for 5 seconds
 	select {
@@ -48,7 +48,7 @@ func (m MinerClient) GetRoots() ([]*crypto.Block, error) {
 	ans := make([]*crypto.Block, 0, 1)
 
 	c := make(chan error, 1)
-	go func() { c <- m.client.Call("MinerServer.GetRoots", args, &ans) } ()
+	go func() { c <- m.client.Call("MinerServer.GetRoots", args, &ans) }()
 
 	select {
 	case err := <-c:

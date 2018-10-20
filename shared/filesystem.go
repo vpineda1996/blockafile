@@ -7,4 +7,3 @@ type FileInfo struct {
 	NumberOfRecords uint32
 	Data            FileData
 }
-

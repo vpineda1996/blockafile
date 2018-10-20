@@ -40,7 +40,7 @@ func NewFilesystemState(
 	nds := transverseChain(nd)
 	fs, err := generateFilesystem(nds, confirmsPerFileCreate, confirmsPerFileAppend)
 	return FilesystemState{
-		fs:fs,
+		fs: fs,
 	}, err
 }
 
@@ -109,10 +109,10 @@ func evaluateFSBlockOps(
 					return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
 				}
 				lg.Printf("Creating file %v", tx.Filename)
-				fi := FileInfo {
-					Data:    make([]byte, 0, crypto.DataBlockSize),
+				fi := FileInfo{
+					Data:            make([]byte, 0, crypto.DataBlockSize),
 					NumberOfRecords: 0,
-					Creator: tx.Creator,
+					Creator:         tx.Creator,
 				}
 				fs[Filename(tx.Filename)] = &fi
 			}

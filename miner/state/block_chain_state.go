@@ -11,11 +11,11 @@ type Account string
 type Balance int
 
 type AccountsState struct {
-	appendFee Balance
-	createFee Balance
-	opReward Balance
+	appendFee  Balance
+	createFee  Balance
+	opReward   Balance
 	noOpReward Balance
-	accounts map[Account]Balance
+	accounts   map[Account]Balance
 }
 
 func (b AccountsState) GetAll() map[Account]Balance {
@@ -30,7 +30,7 @@ func (b AccountsState) GetAccountBalance(acc Account) Balance {
 }
 
 func (b *AccountsState) update(accUp map[Account]Balance) {
-	for k,v := range accUp {
+	for k, v := range accUp {
 		award(b.accounts, k, v)
 	}
 }
@@ -58,11 +58,11 @@ func NewAccountsState(
 		return AccountsState{}, err
 	}
 	return AccountsState{
-		appendFee: Balance(appendFee),
-		createFee: Balance(createFee),
-		opReward: Balance(opReward),
+		appendFee:  Balance(appendFee),
+		createFee:  Balance(createFee),
+		opReward:   Balance(opReward),
 		noOpReward: Balance(noOpReward),
-		accounts: st,
+		accounts:   st,
 	}, nil
 }
 
@@ -135,7 +135,7 @@ func evaluateBalanceBlockOps(accs map[Account]Balance, bcs []*crypto.BlockOp, ap
 	return nil
 }
 
-func spend(accs map[Account]Balance, act Account, fee Balance) error  {
+func spend(accs map[Account]Balance, act Account, fee Balance) error {
 	lg.Printf("Account %v spent %v", act, fee)
 	if v, ok := accs[act]; ok {
 		if v >= fee {

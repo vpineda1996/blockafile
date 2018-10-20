@@ -23,13 +23,13 @@ type BlockCalculatorListener interface {
 }
 
 type BlockCalculator struct {
-	listener        BlockCalculatorListener
-	jobSet          *datastruct.PriorityQueue
-	noopSuspended   bool
-	shutdownThreads bool
-	mtx             *sync.Mutex
-	opsPerBlock     int
-	numberOfZeros   int
+	listener                  BlockCalculatorListener
+	jobSet                    *datastruct.PriorityQueue
+	noopSuspended             bool
+	shutdownThreads           bool
+	mtx                       *sync.Mutex
+	opsPerBlock               int
+	numberOfZeros             int
 	timePerBlockTimeoutMillis time.Duration
 }
 
@@ -41,7 +41,7 @@ func (bc *BlockCalculator) AddJob(b *crypto.BlockOp) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
 	item := datastruct.Item{
-		Value: b,
+		Value:    b,
 		Priority: counter,
 	}
 	counter -= 1
@@ -56,12 +56,11 @@ func (bc *BlockCalculator) JobExists(b *crypto.BlockOp) int {
 	return bc.jobSet.Find(eqFn)
 }
 
-
 func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
 	for _, rc := range block.Records {
-		for hpIdx := bc.JobExists(rc); hpIdx >=0; hpIdx = bc.JobExists(rc) {
+		for hpIdx := bc.JobExists(rc); hpIdx >= 0; hpIdx = bc.JobExists(rc) {
 			heap.Remove(bc.jobSet, hpIdx)
 		}
 	}
@@ -92,10 +91,10 @@ func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *b
 	copy(rootHash[:], bc.listener.GetHighestRoot().Hash())
 
 	bk := crypto.Block{
-		MinerId: bc.listener.GetMinerId(),
-		Type: blockType,
-		Nonce: 0,
-		Records: ops,
+		MinerId:   bc.listener.GetMinerId(),
+		Type:      blockType,
+		Nonce:     0,
+		Records:   ops,
 		PrevBlock: rootHash,
 	}
 	bk.FindNonceWithStopSignal(bc.numberOfZeros, suspendBool)
@@ -142,14 +141,13 @@ func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 	return bc.listener.ValidateJobSet(bOps)
 }
 
-
 func NewBlockCalculator(state BlockCalculatorListener, numberOfZeros int, opsPerBlock int, blockTimeout time.Duration) *BlockCalculator {
 	bc := &BlockCalculator{
-		jobSet:      new(datastruct.PriorityQueue),
-		listener:    state,
-		mtx:         new(sync.Mutex),
-		numberOfZeros: numberOfZeros,
-		opsPerBlock: opsPerBlock,
+		jobSet:                    new(datastruct.PriorityQueue),
+		listener:                  state,
+		mtx:                       new(sync.Mutex),
+		numberOfZeros:             numberOfZeros,
+		opsPerBlock:               opsPerBlock,
 		timePerBlockTimeoutMillis: blockTimeout,
 	}
 	heap.Init(bc.jobSet)

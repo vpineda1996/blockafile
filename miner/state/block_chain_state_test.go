@@ -17,12 +17,12 @@ import (
 )
 
 type treeBuilderTest struct {
-	height uint64
-	roots int
-	addOrder []int   // node where we insert first | the number of nodes we insert | id of miner | tpe | txs | id of creator
+	height   uint64
+	roots    int
+	addOrder []int // node where we insert first | the number of nodes we insert | id of miner | tpe | txs | id of creator
 }
 
-var genBlockSeed = [md5.Size]byte{10, 2,1 }
+var genBlockSeed = [md5.Size]byte{10, 2, 1}
 var opReward = 1
 var noOpReward = 1
 var appendFee = shared.NUM_COINS_PER_FILE_APPEND
@@ -35,31 +35,31 @@ func buildTree(treeDef treeBuilderTest) *MRootTree {
 	test := treeDef
 	nds := make([]*Node, 0, 100)
 	ee := crypto.BlockElement{
-		Block: &crypto.Block {
-			MinerId: strconv.Itoa(1),
-			Type: crypto.GenesisBlock,
+		Block: &crypto.Block{
+			MinerId:   strconv.Itoa(1),
+			Type:      crypto.GenesisBlock,
 			PrevBlock: genBlockSeed,
-			Records: []*crypto.BlockOp{},
-			Nonce: 12324,
+			Records:   []*crypto.BlockOp{},
+			Nonce:     12324,
 		},
 	}
 	mtr := NewMRootTree()
 
 	// create a root
-	e, _ :=  mtr.PrependElement(ee, nil)
+	e, _ := mtr.PrependElement(ee, nil)
 	nds = append(nds, e)
 
-	for i := 0; i < len(test.addOrder); i+= 6 {
+	for i := 0; i < len(test.addOrder); i += 6 {
 		// grab root and start adding n nodes
 		root := nds[test.addOrder[i]]
 		for j := 0; j < test.addOrder[i+1]; j++ {
 			records := make([]*crypto.BlockOp, test.addOrder[i+4])
 			for u := 0; u < test.addOrder[i+4]; u++ {
 				record := crypto.BlockOp{
-					Type: crypto.CreateFile,
+					Type:     crypto.CreateFile,
 					Filename: "random" + strconv.Itoa(rand.Int()),
-					Data: [crypto.DataBlockSize]byte{counter},
-					Creator: strconv.Itoa(test.addOrder[i+5]),
+					Data:     [crypto.DataBlockSize]byte{counter},
+					Creator:  strconv.Itoa(test.addOrder[i+5]),
 				}
 				records[u] = &record
 				counter += 1
@@ -67,12 +67,12 @@ func buildTree(treeDef treeBuilderTest) *MRootTree {
 			prevBlk := [md5.Size]byte{}
 			copy(prevBlk[:], root.Value.(crypto.BlockElement).Block.Hash())
 			ee := crypto.BlockElement{
-				Block: &crypto.Block {
-					MinerId: strconv.Itoa(test.addOrder[i+2]),
-					Type: crypto.BlockType(test.addOrder[i+3]),
+				Block: &crypto.Block{
+					MinerId:   strconv.Itoa(test.addOrder[i+2]),
+					Type:      crypto.BlockType(test.addOrder[i+3]),
 					PrevBlock: prevBlk,
-					Records: records,
-					Nonce: 12324,
+					Records:   records,
+					Nonce:     12324,
 				},
 			}
 			var err error
@@ -96,8 +96,8 @@ func TestSimpleBlockChainTree(t *testing.T) {
 
 	t.Run("simple tree with just the genesis block", func(t *testing.T) {
 		treeDef := treeBuilderTest{
-			height: 1,
-			roots: 1,
+			height:   1,
+			roots:    1,
 			addOrder: []int{},
 		}
 		tree := buildTree(treeDef)
@@ -109,7 +109,7 @@ func TestSimpleBlockChainTree(t *testing.T) {
 	t.Run("simple tree with just genesis and a no-op block", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 1,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				0, 1, 1, int(crypto.NoOpBlock), 0, 1},
 		}
@@ -123,7 +123,7 @@ func TestSimpleBlockChainTree(t *testing.T) {
 	t.Run("simple tree with just genesis, no-op block, op block with 1 tx", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				0, 1, 1, int(crypto.NoOpBlock), 0, 1,
 				1, 1, 2, int(crypto.RegularBlock), 1, 1},
@@ -145,7 +145,7 @@ func TestComplexBlockChainTree(t *testing.T) {
 	t.Run("long branch with multiple accounts", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// true chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
@@ -168,7 +168,7 @@ func TestComplexBlockChainTree(t *testing.T) {
 	t.Run("it only follows tnx on longest chain", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// true chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
@@ -178,8 +178,8 @@ func TestComplexBlockChainTree(t *testing.T) {
 				101, 3, 3, int(crypto.NoOpBlock), 0, 1,
 
 				// longest chain
-				100, 1, 5, int(crypto.NoOpBlock), 0, 1,     // id: 105
-				105, 30, 2, int(crypto.NoOpBlock), 0, 1},   // id: 106
+				100, 1, 5, int(crypto.NoOpBlock), 0, 1, // id: 105
+				105, 30, 2, int(crypto.NoOpBlock), 0, 1}, // id: 106
 		}
 		tree := buildTree(treeDef)
 		bkState, err := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
@@ -197,7 +197,7 @@ func TestComplexBlockChainTree(t *testing.T) {
 	t.Run("FUN stands for fucked under necessary conditions", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// first part chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
@@ -207,12 +207,12 @@ func TestComplexBlockChainTree(t *testing.T) {
 				101, 3, 3, int(crypto.NoOpBlock), 0, 1,
 
 				// middle chain
-				100, 1, 5, int(crypto.NoOpBlock), 0, 1,     // id: 105
-				105, 30, 2, int(crypto.NoOpBlock), 0, 1,    // id: 135
+				100, 1, 5, int(crypto.NoOpBlock), 0, 1, // id: 105
+				105, 30, 2, int(crypto.NoOpBlock), 0, 1, // id: 135
 
 				// evil takover of the chain
-				50, 100, 3, int(crypto.NoOpBlock), 0, 1,    // id: 235
-				235, 6, 4, int(crypto.NoOpBlock), 0, 1,},  // id: 241
+				50, 100, 3, int(crypto.NoOpBlock), 0, 1, // id: 235
+				235, 6, 4, int(crypto.NoOpBlock), 0, 1}, // id: 241
 		}
 		tree := buildTree(treeDef)
 		bkState, err := NewAccountsState(appendFee, createFee, opReward, noOpReward, tree.GetLongestChain())
@@ -235,20 +235,20 @@ func TestAccountConfig(t *testing.T) {
 		copy(prevBlk[:], hd.Value.(crypto.BlockElement).Block.Hash())
 		records := make([]*crypto.BlockOp, 1)
 		record := crypto.BlockOp{
-			Type: crypto.AppendFile,
-			Filename: filenames[0],
-			Data: datum[0],
-			Creator: strconv.Itoa(1),
+			Type:         crypto.AppendFile,
+			Filename:     filenames[0],
+			Data:         datum[0],
+			Creator:      strconv.Itoa(1),
 			RecordNumber: uint32(0),
 		}
 		records[0] = &record
 		ee := crypto.BlockElement{
-			Block: &crypto.Block {
-				MinerId: strconv.Itoa(1),
-				Type: crypto.RegularBlock,
+			Block: &crypto.Block{
+				MinerId:   strconv.Itoa(1),
+				Type:      crypto.RegularBlock,
 				PrevBlock: prevBlk,
-				Records: records,
-				Nonce: 12324,
+				Records:   records,
+				Nonce:     12324,
 			},
 		}
 		tree.PrependElement(ee, tree.GetLongestChain())
@@ -257,7 +257,7 @@ func TestAccountConfig(t *testing.T) {
 	t.Run("test create fee", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// true chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
@@ -278,10 +278,10 @@ func TestAccountConfig(t *testing.T) {
 		equals(t, mp, bkState.GetAll())
 	})
 
-	t.Run("test append fee", func(t *testing.T){
+	t.Run("test append fee", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// true chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
@@ -308,10 +308,10 @@ func TestAccountConfig(t *testing.T) {
 		equals(t, mp, bkState.GetAll())
 	})
 
-	t.Run("test op reward", func(t *testing.T){
+	t.Run("test op reward", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// true chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
@@ -336,7 +336,7 @@ func TestAccountConfig(t *testing.T) {
 	t.Run("test noop reward", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// true chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
@@ -358,10 +358,10 @@ func TestAccountConfig(t *testing.T) {
 		equals(t, mp, bkState.GetAll())
 	})
 
-	t.Run("test reward and fee in the same tree", func(t *testing.T){
+	t.Run("test reward and fee in the same tree", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// true chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,
@@ -382,10 +382,10 @@ func TestAccountConfig(t *testing.T) {
 		equals(t, mp, bkState.GetAll())
 	})
 
-	t.Run("test reward and fee in the same block", func(t *testing.T){
+	t.Run("test reward and fee in the same block", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 2,
-			roots: 1,
+			roots:  1,
 			addOrder: []int{
 				// true chain
 				0, 100, 1, int(crypto.NoOpBlock), 0, 1,

@@ -10,13 +10,12 @@ import (
 )
 import "../../shared/datastruct"
 
-
 type BlockChainValidator struct {
 	cnf                 Config
 	mTree               *datastruct.MRootTree
 	lastStateAccount    AccountsState
 	lastFilesystemState FilesystemState
-	mtx *sync.Mutex
+	mtx                 *sync.Mutex
 
 	generatingNodeId string
 }
@@ -115,7 +114,6 @@ func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *
 		bcv.lastFilesystemState = fss
 	}
 
-
 	newOps, original := ops, -1
 	for original != len(newOps) {
 		original = len(newOps)
@@ -135,7 +133,6 @@ func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *
 	}
 	return newOps
 }
-
 
 // TODO EC3 delete, do something here
 func (bcv *BlockChainValidator) validateNewFSState(b crypto.BlockElement) (map[Filename]*FileInfo, error) {
@@ -162,10 +159,10 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp, res
 				continue
 			}
 
-			fi := FileInfo {
-				Data:    make([]byte, 0, crypto.DataBlockSize),
+			fi := FileInfo{
+				Data:            make([]byte, 0, crypto.DataBlockSize),
 				NumberOfRecords: 0,
-				Creator: tx.Creator,
+				Creator:         tx.Creator,
 			}
 			res[Filename(tx.Filename)] = &fi
 			validOps = append(validOps, tx)
@@ -186,10 +183,10 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp, res
 					continue
 				}
 
-				fi := FileInfo {
-					Data:    make([]byte, 0, len(f.Data)),
+				fi := FileInfo{
+					Data:            make([]byte, 0, len(f.Data)),
 					NumberOfRecords: newRecordNo,
-					Creator: f.Creator,
+					Creator:         f.Creator,
 				}
 				res[Filename(tx.Filename)] = &fi
 				copy(fi.Data, f.Data)
@@ -202,10 +199,10 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp, res
 						" to file " + tx.Filename + " duplicated in chain, failing, expected " + strconv.Itoa(int(donkey.NumberOfRecords)))
 					continue
 				}
-				monkey := FileInfo {
-					Data:    make([]byte, 0, len(donkey.Data)),
+				monkey := FileInfo{
+					Data:            make([]byte, 0, len(donkey.Data)),
 					NumberOfRecords: donkey.NumberOfRecords + 1,
-					Creator: donkey.Creator,
+					Creator:         donkey.Creator,
 				}
 				res[Filename(tx.Filename)] = &monkey
 				copy(monkey.Data, donkey.Data)
@@ -264,7 +261,7 @@ func (bcv *BlockChainValidator) validateNewAccountBlockOps(bcs []*crypto.BlockOp
 			res[act] = 0
 		}
 		if b := accs.GetAccountBalance(act) + res[act]; b < txFee {
-			err =  errors.New("balance for account " + string(act) + " is not enough, it has " + fmt.Sprintf("%v", b) +
+			err = errors.New("balance for account " + string(act) + " is not enough, it has " + fmt.Sprintf("%v", b) +
 				" but it needs " + fmt.Sprintf("%v", txFee))
 		} else {
 			// Apply fee to the account
@@ -275,7 +272,7 @@ func (bcv *BlockChainValidator) validateNewAccountBlockOps(bcs []*crypto.BlockOp
 	return validOps, err
 }
 
-func getParentNode(mTree *datastruct.MRootTree, id string) (*datastruct.Node, error)  {
+func getParentNode(mTree *datastruct.MRootTree, id string) (*datastruct.Node, error) {
 	root, ok := mTree.Find(id)
 	if !ok {
 		return nil, errors.New("parent not in tree")
@@ -289,27 +286,23 @@ func validateBlockHash(b crypto.BlockElement, zeros int) bool {
 
 func NewBlockChainValidator(config Config, mTree *datastruct.MRootTree) *BlockChainValidator {
 	return &BlockChainValidator{
-		cnf:config,
+		cnf:              config,
 		generatingNodeId: "",
-		mTree: mTree,
-		mtx: new(sync.Mutex),
+		mTree:            mTree,
+		mtx:              new(sync.Mutex),
 	}
 }
 
 func transverseChain(root *datastruct.Node) []*datastruct.Node {
-	res := make([]*datastruct.Node, root.Height + 1)
+	res := make([]*datastruct.Node, root.Height+1)
 	// create list
-	for nd, i := root, 0; nd != nil; nd, i = nd.Next(), i + 1 {
+	for nd, i := root, 0; nd != nil; nd, i = nd.Next(), i+1 {
 		res[i] = nd
 	}
 	// reverse
-	for l, r := 0, len(res) - 1; l < r; l, r = l + 1, r - 1 {
+	for l, r := 0, len(res)-1; l < r; l, r = l+1, r-1 {
 		res[l], res[r] = res[r], res[l]
 	}
 
 	return res
 }
-
-
-
-

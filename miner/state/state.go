@@ -15,10 +15,10 @@ import (
 
 type MinerState struct {
 	// dont ask of the double ptr, its cancer but there is no other way
-	logger *govec.GoLog
-	tm **TreeManager
+	logger  *govec.GoLog
+	tm      **TreeManager
 	clients *[]*api.MinerClient
-	bc **BlockCalculator
+	bc      **BlockCalculator
 	minerId string
 }
 
@@ -48,7 +48,7 @@ func (s MinerState) GetFilesystemState(
 	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, (*s.tm).GetLongestChain())
 }
 
-func (s MinerState) GetBlock(id string) (*crypto.Block, bool){
+func (s MinerState) GetBlock(id string) (*crypto.Block, bool) {
 	return (*s.tm).GetBlock(id)
 }
 
@@ -79,7 +79,7 @@ func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
 	return nil, false
 }
 
-func (s MinerState) GetRemoteRoots() ([]*crypto.Block) {
+func (s MinerState) GetRemoteRoots() []*crypto.Block {
 	blocks := make(map[string]*crypto.Block)
 	for _, c := range *s.clients {
 		arr, err := c.GetRoots()
@@ -184,9 +184,9 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	ms := MinerState{
 		clients: &cls,
 		minerId: config.MinerId,
-		tm: &treePtr,
-		bc: &blockCalcPtr,
-		logger: logger,
+		tm:      &treePtr,
+		bc:      &blockCalcPtr,
+		logger:  logger,
 	}
 	treePtr = NewTreeManager(config, ms, ms)
 	blockCalcPtr = NewBlockCalculator(ms, config.NumberOfZeros, config.OpPerBlock, time.Duration(config.GenOpBlockTimeout))
@@ -194,11 +194,11 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	// add genesis block
 	err := (*ms.tm).AddBlock(crypto.BlockElement{
 		Block: &crypto.Block{
-			Records: []*crypto.BlockOp{},
-			Type: crypto.GenesisBlock,
+			Records:   []*crypto.BlockOp{},
+			Type:      crypto.GenesisBlock,
 			PrevBlock: config.GenesisBlockHash,
-			Nonce: 0,
-			MinerId: "",
+			Nonce:     0,
+			MinerId:   "",
 		},
 	})
 

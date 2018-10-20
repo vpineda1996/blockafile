@@ -10,7 +10,6 @@ import (
 	"net/rpc"
 )
 
-
 type MinerServerListener interface {
 	AddBlock(b *crypto.Block)
 	AddJob(b crypto.BlockOp)
@@ -20,7 +19,7 @@ type MinerServerListener interface {
 
 type MinerServer struct {
 	listener MinerServerListener
-	logger *govec.GoLog
+	logger   *govec.GoLog
 }
 
 type GetNodeArgs struct {
@@ -32,10 +31,9 @@ type GetNodeRes struct {
 	Found bool
 }
 
-
 // TODO SUPER IMPORTANT EVERY TIME THAT SOMEONE CALLS US ADD IT TO LIST OF CLIENTS!!!!!!
 
-func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error  {
+func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error {
 	bk, ok := m.listener.GetBlock(args.Id)
 	*res = GetNodeRes{
 		Block: *bk,
@@ -44,18 +42,17 @@ func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error  {
 	return nil
 }
 
-type EmptyArgs struct {}
+type EmptyArgs struct{}
 
-func (m *MinerServer) GetRoots(e *EmptyArgs, res *[]*crypto.Block) error  {
+func (m *MinerServer) GetRoots(e *EmptyArgs, res *[]*crypto.Block) error {
 	bkArr := m.listener.GetRoots()
 	*res = bkArr
 	return nil
 }
 
-func (m *MinerServer) GetOtherHosts(e *EmptyArgs, res *[]string) error  {
+func (m *MinerServer) GetOtherHosts(e *EmptyArgs, res *[]string) error {
 	return errors.New("not implemented")
 }
-
 
 type ReceiveNodeArgs struct {
 	Block crypto.Block
@@ -79,7 +76,7 @@ func (m *MinerServer) ReceiveJob(args *ReceiveJobArgs, res *bool) error {
 
 func InitMinerServer(addr string, state MinerServerListener, logger *govec.GoLog) error {
 	ms := &MinerServer{
-		logger: logger,
+		logger:   logger,
 		listener: state,
 	}
 	server := rpc.NewServer()

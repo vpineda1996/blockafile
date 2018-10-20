@@ -27,7 +27,7 @@ func TestListenForClients(t *testing.T) {
 
 	t.Run("should return error if given address is invalid", func(t *testing.T) {
 		wg := &sync.WaitGroup{}
-		testInstance := ClientHandler {waitGroup: wg, ListenHost: "0"}
+		testInstance := ClientHandler{waitGroup: wg, ListenHost: "0"}
 		wg.Add(1)
 		err := testInstance.ListenForClients()
 		assert(t, err != nil, "should return error")
@@ -35,7 +35,7 @@ func TestListenForClients(t *testing.T) {
 
 	t.Run("should loop infinitely if no errors occurring", func(t *testing.T) {
 		wg := &sync.WaitGroup{}
-		testInstance := ClientHandler {waitGroup: wg, ListenHost: fmt.Sprintf("127.0.0.1:%v", generateRandomPort())}
+		testInstance := ClientHandler{waitGroup: wg, ListenHost: fmt.Sprintf("127.0.0.1:%v", generateRandomPort())}
 		wg.Add(1)
 
 		var err error = nil
@@ -54,7 +54,7 @@ func TestServiceClientRequest(t *testing.T) {
 
 	var minerInstance Miner = MinerInstance{}
 	wg := &sync.WaitGroup{}
-	testInstance := ClientHandler {waitGroup: wg, miner: &minerInstance}
+	testInstance := ClientHandler{waitGroup: wg, miner: &minerInstance}
 
 	var serviceError error = nil
 	serviceClientRequestWrapper := func(testInstance ClientHandler, conn net.Conn) {
@@ -80,7 +80,7 @@ func TestServiceClientRequest(t *testing.T) {
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
 		connClient.Close()
-		time.Sleep(time.Second/2)
+		time.Sleep(time.Second / 2)
 		assert(t, serviceError == io.EOF, "error should be EOF when client connection closes")
 	})
 
@@ -163,7 +163,7 @@ func TestServiceClientRequest(t *testing.T) {
 		assert(t, !timeout, "should get response for append record request")
 	})
 
-	t.Run("should fail to parse the current request if invalid request type", func (t *testing.T) {
+	t.Run("should fail to parse the current request if invalid request type", func(t *testing.T) {
 		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		serviceError = nil
@@ -190,7 +190,7 @@ func sendRequest(request interface{}, tcpConn *net.TCPConn, t *testing.T) {
 }
 
 // Returns the response and/or true if the read timed out
-func getResponseOrTimeout(tcpConn *net.TCPConn, t *testing.T) (shared.RFSMinerResponse, bool){
+func getResponseOrTimeout(tcpConn *net.TCPConn, t *testing.T) (shared.RFSMinerResponse, bool) {
 	minerResponse := shared.RFSMinerResponse{}
 	responseBuf := make([]byte, 1024)
 	tcpConn.SetReadDeadline(time.Now().Add(time.Second * 3))

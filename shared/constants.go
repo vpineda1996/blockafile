@@ -4,7 +4,7 @@ import "github.com/DistributedClocks/GoVector/govec"
 
 const (
 	NUM_COINS_PER_FILE_APPEND = 1
-	LOGFILE = "miner"
+	LOGFILE                   = "miner"
 )
 
 var GoVecOpts = govec.GoLogConfig{

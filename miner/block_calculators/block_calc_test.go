@@ -42,7 +42,7 @@ func (bg blkGenList) GetRoots() []*Block {
 func (bg blkGenList) GetHighestRoot() *Block {
 	*bg.getHighestRoot += 1
 	return &Block{
-		Type: GenesisBlock,
+		Type:      GenesisBlock,
 		PrevBlock: [md5.Size]byte{12, 1},
 	}
 }
@@ -61,15 +61,17 @@ func (bg blkGenList) ValidateJobSet(bOps []*BlockOp) []*BlockOp {
 }
 
 const minerId = "william"
+
 var validBlockOps = []*BlockOp{
 	{
-		Type: CreateFile,
-		RecordNumber:0,
-		Filename: "beeee",
-		Data: [512]byte{},
-		Creator: minerId,
+		Type:         CreateFile,
+		RecordNumber: 0,
+		Filename:     "beeee",
+		Data:         [512]byte{},
+		Creator:      minerId,
 	},
 }
+
 const numberOfZeros = 16
 
 func TestBlockGeneration(t *testing.T) {
@@ -91,12 +93,12 @@ func TestBlockGeneration(t *testing.T) {
 
 	t.Run("adds at least one block", func(t *testing.T) {
 		listener := blkGenList{
-			addBlockNoop:   new(int),
+			addBlockNoop:    new(int),
 			addBlockRegular: new(int),
-			getMinerId:     new(int),
-			getHighestRoot: new(int),
-			validate:       new(int),
-			blockOps: validBlockOps,
+			getMinerId:      new(int),
+			getHighestRoot:  new(int),
+			validate:        new(int),
+			blockOps:        validBlockOps,
 		}
 		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
 		bc.StartThreads()
@@ -109,12 +111,12 @@ func TestBlockGeneration(t *testing.T) {
 
 	t.Run("generates three blocks", func(t *testing.T) {
 		listener := blkGenList{
-			addBlockNoop:   new(int),
+			addBlockNoop:    new(int),
 			addBlockRegular: new(int),
-			getMinerId:     new(int),
-			getHighestRoot: new(int),
-			validate:       new(int),
-			blockOps: validBlockOps,
+			getMinerId:      new(int),
+			getHighestRoot:  new(int),
+			validate:        new(int),
+			blockOps:        validBlockOps,
 		}
 		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
 		for i := 0; i < 21; i++ {
@@ -129,12 +131,12 @@ func TestBlockGeneration(t *testing.T) {
 
 	t.Run("doesn't generate no ops", func(t *testing.T) {
 		listener := blkGenList{
-			addBlockNoop:   new(int),
+			addBlockNoop:    new(int),
 			addBlockRegular: new(int),
-			getMinerId:     new(int),
-			getHighestRoot: new(int),
-			validate:       new(int),
-			blockOps: validBlockOps,
+			getMinerId:      new(int),
+			getHighestRoot:  new(int),
+			validate:        new(int),
+			blockOps:        validBlockOps,
 		}
 		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
 		for i := 0; i < 300; i++ {
@@ -150,19 +152,19 @@ func TestBlockGeneration(t *testing.T) {
 
 	t.Run("removes repeated jobs when deleting a job", func(t *testing.T) {
 		listener := blkGenList{
-			addBlockNoop:   new(int),
+			addBlockNoop:    new(int),
 			addBlockRegular: new(int),
-			getMinerId:     new(int),
-			getHighestRoot: new(int),
-			validate:       new(int),
-			blockOps: validBlockOps,
+			getMinerId:      new(int),
+			getHighestRoot:  new(int),
+			validate:        new(int),
+			blockOps:        validBlockOps,
 		}
 		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
 		bc.RemoveJobsFromBlock(&Block{
-			Records:validBlockOps,
+			Records: validBlockOps,
 		})
 		bc.StartThreads()
 		time.Sleep(time.Second)
