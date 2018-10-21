@@ -16,8 +16,11 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
 	"net"
 	"os"
+	"time"
 )
 
 // A Record is the unit of file access (reading/appending) in RFS.
@@ -156,9 +159,17 @@ func Initialize(localAddr string, minerAddr string) (rfs RFS, err error) {
 		return nil, err
 	}
 
+	// Initialize failure detector
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	epochNonce := r1.Intn(math.MaxUint64)
+	fd, notifyCh, err := InitializeFDLib(uint64(epochNonce), 5)
+
 	rfsInstance = new(RFSInstance)
 	rfsInstance.tcpConn = conn
 	rfsInstance.minerAddr = minerAddr
+	rfsInstance.fdlib = fd
+	rfsInstance.failureNotifyChannel = notifyCh
 	return *rfsInstance, nil
 }
 
@@ -175,6 +186,8 @@ var rfsInstance *RFSInstance = nil
 type RFSInstance struct {
 	tcpConn *net.TCPConn
 	minerAddr string
+	fdlib FD
+	failureNotifyChannel <-chan FailureDetected
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -292,50 +305,77 @@ func (rfs RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16
 // RFSInstance helper functions
 
 func (rfs RFSInstance) sendClientRequest(clientRequest shared.RFSClientRequest) (error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(clientRequest)
-	if err != nil {
-		// This may be a little harsh, but we should never hit encoding errors
-		panic(err)
-	}
+	retryCount := 0
+	for {
+		if retryCount >= shared.CLIENT_RETRY_COUNT {
+			lg.Println("retry count exceeded for sendClientRequest()")
+			return DisconnectedError(rfs.minerAddr)
+		}
+		select {
+		case <-rfs.failureNotifyChannel:
+			// Miner node failed
+			return DisconnectedError(rfs.minerAddr)
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			err := enc.Encode(clientRequest)
+			if err != nil {
+				// This may be a little harsh, but we should never hit encoding errors
+				panic(err)
+			}
 
-	// Send to miner
-	lg.Println("Sending client request to miner")
-	_, err = rfs.tcpConn.Write(buf.Bytes())
-	if err != nil {
-		// TODO. Should we be returning DisconnectedError here?
-		lg.Println(err)
-		return DisconnectedError(rfs.minerAddr)
-	}
+			// Send to miner
+			lg.Println("Sending client request to miner")
+			rfs.tcpConn.SetWriteDeadline(time.Time{})
+			_, err = rfs.tcpConn.Write(buf.Bytes())
+			if err != nil {
+				lg.Println(err)
+				retryCount++
+				continue
+			}
 
-	return nil
+			return nil
+		}
+	}
 }
 
 func (rfs RFSInstance) getMinerResponse() (shared.RFSMinerResponse, error) {
-	minerResponse := shared.RFSMinerResponse{}
+	retryCount := 0
+	for {
+		minerResponse := shared.RFSMinerResponse{}
+		if retryCount >= shared.CLIENT_RETRY_COUNT {
+			lg.Println("retry count exceeded for getMinerResponse()")
+			return minerResponse, DisconnectedError(rfs.minerAddr)
+		}
+		select {
+		case <-rfs.failureNotifyChannel:
+			// Miner node failed
+			return minerResponse, DisconnectedError(rfs.minerAddr)
+		default:
+			// Make a buffer to hold incoming response
+			responseBuf := make([]byte, 1024)
 
-	// Make a buffer to hold incoming response
-	responseBuf := make([]byte, 1024)
+			// Read the incoming connection into the buffer
+			rfs.tcpConn.SetReadDeadline(time.Time{})
+			readLen, err := rfs.tcpConn.Read(responseBuf)
+			if err != nil {
+				lg.Println(err)
+				retryCount++
+				continue
+			}
 
-	// Read the incoming connection into the buffer
-	readLen, err := rfs.tcpConn.Read(responseBuf)
-	if err != nil {
-		// TODO. Should we be returning DisconnectedError here?
-		lg.Println(err)
-		return minerResponse, DisconnectedError(rfs.minerAddr)
+			// Decode the miner response
+			var reader = bytes.NewReader(responseBuf[:readLen])
+			dec := gob.NewDecoder(reader)
+			err = dec.Decode(&minerResponse)
+			if err != nil {
+				// Again, we should never hit decoding errors
+				panic(err)
+			}
+
+			return minerResponse, nil
+		}
 	}
-
-	// Decode the miner response
-	var reader = bytes.NewReader(responseBuf[:readLen])
-	dec := gob.NewDecoder(reader)
-	err = dec.Decode(&minerResponse)
-	if err != nil {
-		// Again, we should never hit decoding errors
-		panic(err)
-	}
-
-	return minerResponse, nil
 }
 
 func (rfs RFSInstance) generateResponseError(
