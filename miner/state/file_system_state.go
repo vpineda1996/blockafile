@@ -2,18 +2,11 @@ package state
 
 import (
 	"../../crypto"
+	. "../../shared"
 	"../../shared/datastruct"
 	"errors"
 	"strconv"
 )
-
-type Filename string
-type FileData []byte
-type FileInfo struct {
-	Creator string
-	NumberOfRecords uint32
-	Data    FileData
-}
 
 type FilesystemState struct {
 	fs map[Filename]*FileInfo
@@ -47,7 +40,7 @@ func NewFilesystemState(
 	nds := transverseChain(nd)
 	fs, err := generateFilesystem(nds, confirmsPerFileCreate, confirmsPerFileAppend)
 	return FilesystemState{
-		fs:fs,
+		fs: fs,
 	}, err
 }
 
@@ -74,6 +67,7 @@ func generateFilesystem(
 	// start iterating
 	for idx, nd := range nodes {
 		bae := nd.Value.(crypto.BlockElement)
+		lg.Printf("FS: Processing block %v", bae.Id())
 		switch bae.Block.Type {
 		case crypto.GenesisBlock:
 			if idx != 0 {
@@ -111,14 +105,14 @@ func evaluateFSBlockOps(
 		switch tx.Type {
 		case crypto.CreateFile:
 			if createOpsConfirmed {
-				lg.Printf("Creating file %v", tx.Filename)
 				if _, exists := fs[Filename(tx.Filename)]; exists {
 					return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
 				}
-				fi := FileInfo {
-					Data:    make([]byte, 0, crypto.DataBlockSize),
+				lg.Printf("Creating file %v", tx.Filename)
+				fi := FileInfo{
+					Data:            make([]byte, 0, crypto.DataBlockSize),
 					NumberOfRecords: 0,
-					Creator: tx.Creator,
+					Creator:         tx.Creator,
 				}
 				fs[Filename(tx.Filename)] = &fi
 			}

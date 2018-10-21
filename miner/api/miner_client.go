@@ -4,6 +4,8 @@ import (
 	"../../crypto"
 	"errors"
 	"fmt"
+	"github.com/DistributedClocks/GoVector/govec"
+	"github.com/DistributedClocks/GoVector/govec/vrpc"
 	"log"
 	"net/rpc"
 	"os"
@@ -12,6 +14,7 @@ import (
 
 type MinerClient struct {
 	client *rpc.Client
+	logger *govec.GoLog
 }
 
 var lg = log.New(os.Stdout, "minerC: ", log.Lshortfile)
@@ -21,7 +24,7 @@ func (m MinerClient) GetBlock(id string) (*crypto.Block, bool, error) {
 	ans := new(GetNodeRes)
 
 	c := make(chan error, 1)
-	go func() { c <- m.client.Call("MinerServer.GetBlock", args, &ans) } ()
+	go func() { c <- m.client.Call("MinerServer.GetBlock", args, &ans) }()
 
 	// todo vpineda tcp should detect a failure on the connection or just wait for 5 seconds
 	select {
@@ -45,7 +48,7 @@ func (m MinerClient) GetRoots() ([]*crypto.Block, error) {
 	ans := make([]*crypto.Block, 0, 1)
 
 	c := make(chan error, 1)
-	go func() { c <- m.client.Call("MinerServer.GetRoots", args, &ans) } ()
+	go func() { c <- m.client.Call("MinerServer.GetRoots", args, &ans) }()
 
 	select {
 	case err := <-c:
@@ -88,12 +91,13 @@ func (m MinerClient) SendJob(block *crypto.BlockOp) {
 	m.client.Go("MinerServer.ReceiveJob", args, &ans, c)
 }
 
-func NewMinerCliet(addr string) (MinerClient, error) {
-	c, err := rpc.DialHTTP("tcp", addr)
+func NewMinerClient(addr string, logger *govec.GoLog) (MinerClient, error) {
+	c, err := vrpc.RPCDial("tcp", addr, logger, govec.GetDefaultLogOptions())
 	if err != nil {
 		return MinerClient{}, err
 	}
 	return MinerClient{
 		client: c,
+		logger: logger,
 	}, nil
 }

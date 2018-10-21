@@ -7,30 +7,29 @@ import (
 	"time"
 )
 
-
 type BlockRetriever interface {
 	// gets remote block and validates that the id that was given is equal to the cryptoblock
 	GetRemoteBlock(id string) (*crypto.Block, bool)
-	GetRemoteRoots() ([]*crypto.Block)
+	GetRemoteRoots() []*crypto.Block
 }
 
 type TreeChangeListener interface {
-	OnNewBlock(b *crypto.Block)
+	OnNewBlockInTree(b *crypto.Block)
 	OnNewBlockInLongestChain(b *crypto.Block)
 }
 
 // This is one of the most critical areas of a miner, it is the only one that will have access to
 // the blockchain tree itself
 type TreeManager struct {
-	br BlockRetriever
-	mTree BlockChainTree
-	findBlockQueue *datastruct.Queue
+	br              BlockRetriever
+	mTree           BlockChainTree
+	findBlockQueue  *datastruct.Queue
 	findBlockNotify chan bool
 	shutdownThreads bool
-	mtx *sync.Mutex
+	mtx             *sync.Mutex
 }
 
-func (t *TreeManager) GetBlock(id string) (*crypto.Block, bool){
+func (t *TreeManager) GetBlock(id string) (*crypto.Block, bool) {
 	v, ok := t.mTree.Find(id)
 	if !ok {
 		return nil, false
@@ -50,7 +49,8 @@ func (t *TreeManager) GetRoots() []*crypto.Block {
 		if !ok {
 			continue
 		}
-		bkArr[i] = bk.Block
+		cpy := *bk.Block
+		bkArr[i] = &cpy
 	}
 	return bkArr
 }
@@ -97,12 +97,39 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	return nil
 }
 
+func (t *TreeManager) Exists(b *crypto.Block) bool {
+	_, exists := t.mTree.Find(b.Id())
+	return exists
+}
+
+func (t *TreeManager) GetHighestRoot() *crypto.Block {
+	cpy := *t.mTree.GetLongestChain().Value.(crypto.BlockElement).Block
+	return &cpy
+}
+
+func (t *TreeManager) ValidateBlock(b *crypto.Block) bool {
+	return t.mTree.ValidateBlock(b)
+}
+
 func (t *TreeManager) GetLongestChain() *datastruct.Node {
 	return t.mTree.GetLongestChain()
 }
 
+func (t *TreeManager) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
+	return t.mTree.ValidateJobSet(bOps)
+}
 
-func blockAdderHelper(t* TreeManager, b crypto.BlockElement) bool {
+func (t *TreeManager) ShutdownThreads() {
+	t.shutdownThreads = true
+}
+
+func (t *TreeManager) StartThreads() {
+	t.shutdownThreads = false
+	go FindNodeThread(t)
+	go UpdateRootsThread(t)
+}
+
+func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 	// the block is a genesis block no need to check children add it directly
 	if b.Block.Type == crypto.GenesisBlock {
 		t.AddBlock(b)
@@ -161,7 +188,8 @@ func removeNodesStartingFrom(block crypto.BlockElement, q *datastruct.Queue) boo
 		}
 		return false
 	}
-	for q.Del(fDeleteSearch) {}
+	for q.Del(fDeleteSearch) {
+	}
 	return false
 }
 
@@ -189,23 +217,20 @@ func UpdateRootsThread(t *TreeManager) {
 	}
 }
 
-
 func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *TreeManager {
 	tree := datastruct.NewMRootTree()
-	tm :=  &TreeManager{
-		mtx:     new(sync.Mutex),
-		br: br,
-		mTree:   BlockChainTree{
-			mTree: tree,
-			tcl: tcl,
+	tm := &TreeManager{
+		mtx: new(sync.Mutex),
+		br:  br,
+		mTree: BlockChainTree{
+			mTree:     tree,
+			tcl:       tcl,
 			validator: NewBlockChainValidator(cnf, tree),
 		},
-		findBlockQueue: &datastruct.Queue{},
+		findBlockQueue:  &datastruct.Queue{},
 		findBlockNotify: make(chan bool),
 		shutdownThreads: false,
 	}
-	go FindNodeThread(tm)
-	go UpdateRootsThread(tm)
 	return tm
 }
 
@@ -215,7 +240,7 @@ type BlockChainTree struct {
 	tcl       TreeChangeListener
 }
 
-func (b BlockChainTree) Find(id string) (*datastruct.Node, bool){
+func (b BlockChainTree) Find(id string) (*datastruct.Node, bool) {
 	return b.mTree.Find(id)
 }
 
@@ -233,7 +258,7 @@ func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error)
 		return nil, err
 	}
 
-	b.tcl.OnNewBlock(block.Block)
+	b.tcl.OnNewBlockInTree(block.Block)
 	if b.GetLongestChain().Id == block.Id() {
 		b.tcl.OnNewBlockInLongestChain(block.Block)
 	}
@@ -245,6 +270,17 @@ func (b BlockChainTree) GetLongestChain() *datastruct.Node {
 	return b.mTree.GetLongestChain()
 }
 
-func (b BlockChainTree) GetRoots() []*datastruct.Node{
+func (b BlockChainTree) ValidateBlock(blk *crypto.Block) bool {
+	_, err := b.validator.Validate(crypto.BlockElement{
+		Block: blk,
+	})
+	return err != nil
+}
+
+func (b BlockChainTree) GetRoots() []*datastruct.Node {
 	return b.mTree.GetRoots()
+}
+
+func (b BlockChainTree) ValidateJobSet(ops []*crypto.BlockOp) []*crypto.BlockOp {
+	return b.validator.ValidateJobSet(ops, b.mTree.GetLongestChain())
 }

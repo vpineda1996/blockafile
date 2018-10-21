@@ -173,7 +173,7 @@ func TearDown() (err error) {
 var rfsInstance *RFSInstance = nil
 
 type RFSInstance struct {
-	tcpConn *net.TCPConn
+	tcpConn   *net.TCPConn
 	minerAddr string
 }
 
@@ -291,7 +291,7 @@ func (rfs RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16
 ////////////////////////////////////////////////////////////////////////////////////////////
 // RFSInstance helper functions
 
-func (rfs RFSInstance) sendClientRequest(clientRequest shared.RFSClientRequest) (error) {
+func (rfs RFSInstance) sendClientRequest(clientRequest shared.RFSClientRequest) error {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(clientRequest)
