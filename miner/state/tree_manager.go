@@ -107,6 +107,10 @@ func (t *TreeManager) GetHighestRoot() *crypto.Block {
 	return &cpy
 }
 
+func (t *TreeManager) InLongestChain(id string) int {
+	return t.mTree.InLongestChain(id)
+}
+
 func (t *TreeManager) ValidateBlock(b *crypto.Block) bool {
 	return t.mTree.ValidateBlock(b)
 }
@@ -132,14 +136,22 @@ func (t *TreeManager) StartThreads() {
 func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 	// the block is a genesis block no need to check children add it directly
 	if b.Block.Type == crypto.GenesisBlock {
-		t.AddBlock(b)
+		err := t.AddBlock(b)
+		if err != nil {
+			removeNodesStartingFrom(b, t.findBlockQueue)
+			return false
+		}
 		return true
 	}
 
 	// parent block is in the tree, add it
 	if _, ok := t.mTree.Find(b.ParentId()); ok {
 		if _, ok := t.mTree.Find(b.Id()); !ok {
-			t.AddBlock(b)
+			err := t.AddBlock(b)
+			if err != nil {
+				removeNodesStartingFrom(b, t.findBlockQueue)
+				return false
+			}
 		}
 		return true
 	}
@@ -152,7 +164,11 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 
 	if t.findBlockQueue.IsInQueue(eqParIdFn) {
 		lg.Printf("Found parent %v, in queue. Queuing block %v", b.ParentId(), b.Id())
-		t.AddBlock(b)
+		err := t.AddBlock(b)
+		if err != nil {
+			removeNodesStartingFrom(b, t.findBlockQueue)
+			return false
+		}
 		return true
 	}
 
@@ -163,16 +179,33 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 		removeNodesStartingFrom(b, t.findBlockQueue)
 		return false
 	} else {
-		// we found the parent block!, add the parent to the queue and then the child
-		err := t.AddBlock(crypto.BlockElement{
-			Block: block,
-		})
-		if err == nil {
-			t.AddBlock(b)
-			return true
+		// we found the parent block!, add the parent if the parent of the parent is there
+		if _, ok := t.mTree.Find(b.ParentId()); ok {
+			lg.Printf("Found parent that is viable adding")
+			err := t.AddBlock(crypto.BlockElement{
+				Block: block,
+			})
+			if err == nil {
+				err := t.AddBlock(b)
+				if err != nil {
+					removeNodesStartingFrom(b, t.findBlockQueue)
+					return false
+				}
+				return true
+			} else {
+				// remove all of the nodes that had b as parent
+				removeNodesStartingFrom(b, t.findBlockQueue)
+				return false
+			}
 		} else {
-			// remove all of the nodes that had b as parent
-			return removeNodesStartingFrom(b, t.findBlockQueue)
+			success := blockAdderHelper(t, crypto.BlockElement{
+				Block: block,
+			})
+			if success {
+				lg.Printf("Adding missing block %v", b.Id())
+				t.AddBlock(b)
+			}
+			return success
 		}
 	}
 }
@@ -213,7 +246,7 @@ func UpdateRootsThread(t *TreeManager) {
 				Block: block,
 			})
 		}
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second)
 	}
 }
 
@@ -264,6 +297,17 @@ func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error)
 	}
 
 	return nd, err
+}
+
+func (b BlockChainTree) InLongestChain(id string) int {
+	depth := 0
+	for r := b.GetLongestChain(); r != nil; r = r.Next() {
+		if r.Id == id {
+			return depth
+		}
+		depth += 1
+	}
+	return -1
 }
 
 func (b BlockChainTree) GetLongestChain() *datastruct.Node {

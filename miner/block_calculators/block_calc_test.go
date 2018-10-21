@@ -21,6 +21,10 @@ type blkGenList struct {
 	blockOps        []*BlockOp
 }
 
+func (bg blkGenList) InLongestChain(id string) int {
+	return 100
+}
+
 func (bg blkGenList) AddBlock(b *Block) {
 	fmt.Printf("adding blok %x\n", b.Hash())
 	if !b.Valid(numberOfZeros) {
@@ -82,7 +86,7 @@ func TestBlockGeneration(t *testing.T) {
 			getHighestRoot: new(int),
 			validate:       new(int),
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		bc.StartThreads()
 		time.Sleep(time.Second)
 		bc.ShutdownThreads()
@@ -100,7 +104,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		bc.StartThreads()
 		bc.AddJob(validBlockOps[0])
 		time.Sleep(time.Second)
@@ -118,7 +122,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		for i := 0; i < 21; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -138,7 +142,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -159,7 +163,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}

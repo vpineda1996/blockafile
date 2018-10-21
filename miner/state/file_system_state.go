@@ -67,7 +67,6 @@ func generateFilesystem(
 	// start iterating
 	for idx, nd := range nodes {
 		bae := nd.Value.(crypto.BlockElement)
-		lg.Printf("FS: Processing block %v", bae.Id())
 		switch bae.Block.Type {
 		case crypto.GenesisBlock:
 			if idx != 0 {
