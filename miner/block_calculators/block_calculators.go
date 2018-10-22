@@ -113,7 +113,7 @@ func addedToLongestChainValidation(bc *BlockCalculator, block *crypto.Block) boo
 		} else if depth > bc.maxConfirm {
 			return true
 		}
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 50)
 	}
 }
 
@@ -134,6 +134,7 @@ func JobsCalculator(bc *BlockCalculator) {
 
 					if !addedToLongestChainValidation(bc, newBlock) {
 						// re-enqueue jobs if we didn't add and start from scratch
+						lg.Printf("Block wasn't added to blockchain, putting it on the backburner")
 						for _, r := range newBlock.Records {
 							bc.AddJob(r)
 						}
@@ -156,7 +157,9 @@ func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 	bOps := make([]*crypto.BlockOp, 0, bc.opsPerBlock)
 	for i := 0; i < bc.opsPerBlock && bc.jobSet.Len() > 0; i++ {
 		if i == 0 {
+			bc.mtx.Unlock()
 			time.Sleep(time.Millisecond * bc.timePerBlockTimeoutMillis)
+			bc.mtx.Lock()
 		}
 		blk := heap.Pop(bc.jobSet).(*datastruct.Item).Value.(*crypto.BlockOp)
 		bOps = append(bOps, blk)

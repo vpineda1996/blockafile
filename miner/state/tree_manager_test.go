@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -1005,17 +1006,21 @@ func TestBlockRetrieval(t *testing.T) {
 		equals(t, 0, len(fs))
 	})
 }
-
+var lock = sync.Mutex{}
 type obl struct {
 	newb  *int
 	newll *int
 }
 
 func (o obl) OnNewBlockInTree(b *crypto.Block) {
+	lock.Lock()
+	defer lock.Unlock()
 	*o.newb += 1
 }
 
 func (o obl) OnNewBlockInLongestChain(b *crypto.Block) {
+	lock.Lock()
+	defer lock.Unlock()
 	*o.newll += 1
 }
 
@@ -1090,6 +1095,7 @@ func TestOnBlockListeners(t *testing.T) {
 		if err != nil {
 			t.Fail()
 		}
+		time.Sleep(time.Millisecond * 100)
 		equals(t, 202, *ob.newb)
 		equals(t, 202-12, *ob.newll)
 	})

@@ -26,7 +26,6 @@ type TreeManager struct {
 	findBlockQueue  *datastruct.Queue
 	findBlockNotify chan bool
 	shutdownThreads bool
-	mtx             *sync.Mutex
 }
 
 func (t *TreeManager) GetBlock(id string) (*crypto.Block, bool) {
@@ -253,11 +252,11 @@ func UpdateRootsThread(t *TreeManager) {
 func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *TreeManager {
 	tree := datastruct.NewMRootTree()
 	tm := &TreeManager{
-		mtx: new(sync.Mutex),
 		br:  br,
 		mTree: BlockChainTree{
 			mTree:     tree,
 			tcl:       tcl,
+			mtx: new(sync.Mutex),
 			validator: NewBlockChainValidator(cnf, tree),
 		},
 		findBlockQueue:  &datastruct.Queue{},
@@ -271,35 +270,42 @@ type BlockChainTree struct {
 	mTree     *datastruct.MRootTree
 	validator *BlockChainValidator
 	tcl       TreeChangeListener
+	mtx *sync.Mutex
 }
 
 func (b BlockChainTree) Find(id string) (*datastruct.Node, bool) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	return b.mTree.Find(id)
 }
 
 // adds block to the blockchain give that it passes all validations
 func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	root, err := b.validator.Validate(block)
 	if err != nil {
 		lg.Printf("Rejected block %v, due to %v\n", block.Id(), err)
 		return nil, err
 	}
-	lg.Printf("Added block %v\n", block.Id())
 
 	nd, err := b.mTree.PrependElement(block, root)
+	lg.Printf("Added block %v\n", block.Id())
 	if err != nil {
 		return nil, err
 	}
 
-	b.tcl.OnNewBlockInTree(block.Block)
+	go b.tcl.OnNewBlockInTree(block.Block)
 	if b.GetLongestChain().Id == block.Id() {
-		b.tcl.OnNewBlockInLongestChain(block.Block)
+		go b.tcl.OnNewBlockInLongestChain(block.Block)
 	}
 
 	return nd, err
 }
 
 func (b BlockChainTree) InLongestChain(id string) int {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	depth := 0
 	for r := b.GetLongestChain(); r != nil; r = r.Next() {
 		if r.Id == id {
@@ -315,6 +321,8 @@ func (b BlockChainTree) GetLongestChain() *datastruct.Node {
 }
 
 func (b BlockChainTree) ValidateBlock(blk *crypto.Block) bool {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	_, err := b.validator.Validate(crypto.BlockElement{
 		Block: blk,
 	})
@@ -322,9 +330,13 @@ func (b BlockChainTree) ValidateBlock(blk *crypto.Block) bool {
 }
 
 func (b BlockChainTree) GetRoots() []*datastruct.Node {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	return b.mTree.GetRoots()
 }
 
 func (b BlockChainTree) ValidateJobSet(ops []*crypto.BlockOp) []*crypto.BlockOp {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	return b.validator.ValidateJobSet(ops, b.mTree.GetLongestChain())
 }

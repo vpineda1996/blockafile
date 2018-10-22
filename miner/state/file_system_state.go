@@ -104,6 +104,10 @@ func evaluateFSBlockOps(
 		switch tx.Type {
 		case crypto.CreateFile:
 			if createOpsConfirmed {
+				if len(tx.Filename) > MaxFileName {
+					return errors.New("filename is to big for the given file")
+				}
+
 				if _, exists := fs[Filename(tx.Filename)]; exists {
 					return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
 				}

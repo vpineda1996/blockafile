@@ -149,6 +149,11 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp, res
 	for _, tx := range bcs {
 		switch tx.Type {
 		case crypto.CreateFile:
+			if len(tx.Filename) > MaxFileName {
+				err = errors.New("filename is to big for the given file")
+				continue
+			}
+
 			if _, exists := fs[Filename(tx.Filename)]; exists {
 				err = errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
 				continue
