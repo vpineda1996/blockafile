@@ -3,6 +3,7 @@ package main
 import (
 	"../fdlib"
 	. "../shared"
+	"./state"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -24,15 +25,15 @@ type Miner interface {
 }
 
 type MinerConfiguration struct {
-	MinedCoinsPerOpBlock int
-	MinedCoinsPerNoOpBlock int
-	NumCoinsPerFileCreate int
-	GenOpBlockTimeout int
+	MinedCoinsPerOpBlock uint8
+	MinedCoinsPerNoOpBlock uint8
+	NumCoinsPerFileCreate uint8
+	GenOpBlockTimeout uint8
 	GenesisBlockHash string
-	PowPerOpBlock int
-	PowPerNoOpBlock int
-	ConfirmsPerFileCreate int
-	ConfirmsPerFileAppend int
+	PowPerOpBlock uint8
+	PowPerNoOpBlock uint8
+	ConfirmsPerFileCreate uint8
+	ConfirmsPerFileAppend uint8
 	MinerID string
 	PeerMinersAddrs []string
 	IncomingMinersAddr string
@@ -49,13 +50,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO ksenia. Currently all the miner does is listen for clients and respond to requests
+	// Parse configuration
 	conf, err := ParseConfig(argsWithoutProg[0])
 	if err != nil {
 		lg.Println(err)
 		os.Exit(1)
 	}
-	var minerInstance Miner = MinerInstance{minerConf: conf}
+
+	// Initialize miner state
+	minerStateConf := state.Config{
+		AppendFee: state.Balance(conf.ConfirmsPerFileAppend),
+		CreateFee: state.Balance(conf.ConfirmsPerFileCreate),
+		OpReward: state.Balance(conf.MinedCoinsPerOpBlock),
+		NoOpReward: state.Balance(conf.MinedCoinsPerNoOpBlock),
+		OpNumberOfZeros: int(conf.PowPerOpBlock),
+		NoOpNumberOfZeros: int(conf.PowPerNoOpBlock),
+		Address: "", // todo ksenia. we have several addresses in config, need to update this
+		ConfirmsPerFileCreate: int(conf.ConfirmsPerFileCreate),
+		ConfirmsPerFileAppend: int(conf.ConfirmsPerFileAppend),
+	}
+	ms := state.NewMinerState(minerStateConf, conf.PeerMinersAddrs)
+
+	// Initialize miner instance
+	var minerInstance Miner = MinerInstance{minerConf: conf, minerState: ms}
 
 	// Initialize failure detector and start responding
 	s1 := rand.NewSource(time.Now().UnixNano())
@@ -83,6 +100,7 @@ func main() {
 
 type MinerInstance struct {
 	minerConf MinerConfiguration
+	minerState state.MinerState
 }
 
 // errorType can be one of: FILE_EXISTS, BAD_FILENAME, NO_ERROR
@@ -94,26 +112,65 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 }
 
 func (miner MinerInstance) ListFilesHandler() (fnames []string) {
-	// TODO
 	lg.Println("Handling list files request")
-	fnames = []string{"sample_file1", "sample_file2", "sample_file3"}
-	return
+
+	fs, err := miner.minerState.GetFilesystemState(
+		int(miner.minerConf.ConfirmsPerFileCreate),
+		int(miner.minerConf.ConfirmsPerFileAppend))
+	if err != nil {
+		return []string{}
+	}
+
+	files := fs.GetAll()
+	fnames = make([]string, len(files))
+	i := 0
+	for key := range files {
+		fnames[i] = string(key)
+		i++
+	}
+	return fnames
 }
 
 // errorType can be one of: FILE_DOES_NOT_EXIST, NO_ERROR
 func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType) {
-	// TODO
 	lg.Println("Handling total records request")
-	return 10, -1
+
+	fs, err := miner.minerState.GetFilesystemState(
+		int(miner.minerConf.ConfirmsPerFileCreate),
+		int(miner.minerConf.ConfirmsPerFileAppend))
+	if err != nil {
+		// todo ksenia what to do about this case?
+		panic(err)
+	}
+
+	file, ok := fs.GetFile(state.Filename(fname))
+	if !ok {
+		return 0, FILE_DOES_NOT_EXIST
+	}
+	return file.NumberOfRecords, NO_ERROR
 }
 
 // errorType can be one of: FILE_DOES_NOT_EXIST, NO_ERROR
 func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType FailureType) {
-	// TODO
 	lg.Println("Handling read record request")
 	var read_result [512]byte
-	copy(read_result[:], "Some nice record stuff")
-	return read_result, -1
+
+	fs, err := miner.minerState.GetFilesystemState(
+		int(miner.minerConf.ConfirmsPerFileCreate),
+		int(miner.minerConf.ConfirmsPerFileAppend))
+	if err != nil {
+		// todo ksenia what to do about this case?
+		panic(err)
+	}
+
+	file, ok := fs.GetFile(state.Filename(fname))
+	if !ok {
+		return read_result, FILE_DOES_NOT_EXIST
+	}
+
+	offset := recordNum * 512
+	copy(read_result[:], file.Data[offset:offset+512])
+	return read_result, NO_ERROR
 }
 
 // errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, NO_ERROR

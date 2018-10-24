@@ -26,7 +26,7 @@ type BlockOp struct {
 	// Miner id of the person that create the request
 	Creator string
 	Filename string
-	RecordNumber uint32
+	RecordNumber uint16
 	Data BlockOpData
 }
 
@@ -56,7 +56,7 @@ func (b *Block) serialize() []byte {
 	for _, v := range b.Records {
 		buf.Write([]byte(v.Filename))
 		buf.Write(v.Data[:])
-		binary.LittleEndian.PutUint32(intBuff, v.RecordNumber)
+		binary.LittleEndian.PutUint16(intBuff, v.RecordNumber)
 		buf.Write(intBuff)
 	}
 
@@ -100,11 +100,26 @@ func (b *Block) valid(ser []byte, zeros int) bool {
 	return true
 }
 
-func (b *Block) Valid(zeros int) bool {
+func (b *Block) Valid(zerosOp int, zerosNoOp int) bool {
+	var zeros int
+	switch b.Type {
+	case GenesisBlock, RegularBlock:
+		zeros = zerosOp
+	case NoOpBlock:
+		zeros = zerosNoOp
+	}
 	return b.valid(b.serialize(), zeros)
 }
 
-func (b *Block) FindNonce(zeros int) {
+func (b *Block) FindNonce(zerosOp int, zerosNoOp int) {
+	var zeros int
+	switch b.Type {
+	case GenesisBlock, RegularBlock:
+		zeros = zerosOp
+	case NoOpBlock:
+		zeros = zerosNoOp
+	}
+
 	start := uint32(rand.Int())
 	ser := b.serialize()
 

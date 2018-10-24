@@ -20,14 +20,15 @@ type MinerStateImpl struct {
 }
 
 type Config struct {
-	appendFee Balance // Note that this is not user-configured. Always exactly 1 coin.
-	createFee Balance
-	opReward Balance
-	noOpReward Balance
-	numberOfZeros int
-	address string
-	confirmsPerFileCreate int
-	confirmsPerFileAppend int
+	AppendFee             Balance // Note that this is not user-configured. Always exactly 1 coin.
+	CreateFee             Balance
+	OpReward              Balance
+	NoOpReward            Balance
+	OpNumberOfZeros       int
+	NoOpNumberOfZeros	  int
+	Address               string
+	ConfirmsPerFileCreate int
+	ConfirmsPerFileAppend int
 }
 
 var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
@@ -149,7 +150,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		panic(err)
 	}
 
-	err = api.InitMinerServer(config.address, ms)
+	err = api.InitMinerServer(config.Address, ms)
 	if err != nil {
 		panic("cannot init server twice!")
 	}

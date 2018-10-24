@@ -91,7 +91,7 @@ func TestNonceFinding(t *testing.T) {
 				PrevBlock: prevBlock,
 				Records: records,
 			}
-			bk.FindNonce(test.zeros)
+			bk.FindNonce(test.zeros, test.zeros)
 			h := bk.Hash()
 			hSize := len(h)
 			for i, msk := range test.mask {

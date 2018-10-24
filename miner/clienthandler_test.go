@@ -2,6 +2,7 @@ package main
 
 import (
 	"../shared"
+	"./state"
 	"bytes"
 	"encoding/gob"
 	"fmt"
@@ -52,7 +53,10 @@ func TestServiceClientRequest(t *testing.T) {
 	minerAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
 	maddr, _ := net.ResolveTCPAddr("tcp", minerAddr)
 
-	var minerInstance Miner = MinerInstance{}
+	minerConf := MinerConfiguration{}
+	minerStateConf := state.Config{}
+	minerState := state.NewMinerState(minerStateConf, []string{})
+	var minerInstance Miner = MinerInstance{minerConf: minerConf, minerState: minerState}
 	wg := &sync.WaitGroup{}
 	testInstance := ClientHandler {waitGroup: wg, miner: &minerInstance}
 

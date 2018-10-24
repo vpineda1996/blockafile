@@ -26,7 +26,7 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 		return nil, errors.New("node is already on the blockchain")
 	}
 
-	valid := validateBlockHash(b, bcv.cnf.numberOfZeros)
+	valid := validateBlockHash(b, bcv.cnf.OpNumberOfZeros, bcv.cnf.NoOpNumberOfZeros)
 
 	if !valid {
 		return nil, errors.New("this is a corrupt node, failing")
@@ -48,15 +48,15 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 	// generate history if need be
 	if bcv.generatingNodeId != root.Id {
 		bcas, err := NewAccountsState(
-			int(bcv.cnf.appendFee),
-			int(bcv.cnf.createFee),
-			int(bcv.cnf.opReward),
-			int(bcv.cnf.noOpReward),
+			int(bcv.cnf.AppendFee),
+			int(bcv.cnf.CreateFee),
+			int(bcv.cnf.OpReward),
+			int(bcv.cnf.NoOpReward),
 			root)
 		if err != nil {
 			return nil, err
 		}
-		fss, err := NewFilesystemState(bcv.cnf.confirmsPerFileCreate, bcv.cnf.confirmsPerFileAppend, root)
+		fss, err := NewFilesystemState(bcv.cnf.ConfirmsPerFileCreate, bcv.cnf.ConfirmsPerFileAppend, root)
 		if err != nil {
 			return nil, err
 		}
@@ -149,9 +149,9 @@ func (bcv *BlockChainValidator) validateNewAccountState(b crypto.BlockElement) (
 	// Award miner
 	switch b.Block.Type {
 	case crypto.NoOpBlock:
-		award(res, Account(b.Block.MinerId), bcv.cnf.noOpReward)
+		award(res, Account(b.Block.MinerId), bcv.cnf.NoOpReward)
 	case crypto.RegularBlock:
-		award(res, Account(b.Block.MinerId), bcv.cnf.opReward)
+		award(res, Account(b.Block.MinerId), bcv.cnf.OpReward)
 	default:
 		return nil, errors.New("not a valid block type")
 	}
@@ -161,9 +161,9 @@ func (bcv *BlockChainValidator) validateNewAccountState(b crypto.BlockElement) (
 		var txFee Balance
 		switch tx.Type {
 		case crypto.CreateFile:
-			txFee = bcv.cnf.createFee
+			txFee = bcv.cnf.CreateFee
 		case crypto.AppendFile:
-			txFee = bcv.cnf.appendFee
+			txFee = bcv.cnf.AppendFee
 		default:
 			return nil, errors.New("not a valid file op")
 		}
@@ -191,8 +191,8 @@ func getParentNode(mTree *datastruct.MRootTree, id string) (*datastruct.Node, er
 	return root, nil
 }
 
-func validateBlockHash(b crypto.BlockElement, zeros int) bool {
-	return b.Block.Valid(zeros)
+func validateBlockHash(b crypto.BlockElement, zerosOp int, zerosNoOp int) bool {
+	return b.Block.Valid(zerosOp, zerosNoOp)
 }
 
 func NewBlockChainValidator(config Config, mTree *datastruct.MRootTree) *BlockChainValidator {
