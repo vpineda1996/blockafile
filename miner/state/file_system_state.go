@@ -16,9 +16,12 @@ func (b FilesystemState) GetAll() map[Filename]*FileInfo {
 	return b.fs
 }
 
-func (b *FilesystemState) update(newData map[Filename]*FileInfo) {
+func (b *FilesystemState) update(newData map[Filename]*FileInfo, deletedFiles map[string]bool) {
 	for k, v := range newData {
 		b.fs[k] = v
+	}
+	for k := range deletedFiles {
+		delete(b.fs, Filename(k))
 	}
 }
 
@@ -94,7 +97,6 @@ func generateFilesystem(
 	return res, nil
 }
 
-// TODO EC1 delete add the case over here to add the record
 func evaluateFSBlockOps(
 	fs map[Filename]*FileInfo,
 	bcs []*crypto.BlockOp,
@@ -132,6 +134,14 @@ func evaluateFSBlockOps(
 				} else {
 					return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
 				}
+			}
+		case crypto.DeleteFile:
+			if createOpsConfirmed {
+				if _, exists := fs[Filename(tx.Filename)]; !exists {
+					return errors.New("file " + tx.Filename + " doesn't exist and cannot delete")
+				}
+				lg.Printf("Deleting file %v", tx.Filename)
+				delete(fs, Filename(tx.Filename))
 			}
 		default:
 			return errors.New("vous les hommes êtes tous les mêmes, Macho mais cheap, Bande de mauviettes infidèles")

@@ -248,6 +248,51 @@ func TestMinerState(t *testing.T) {
 	_, v := fs.GetAll()["myFile3"]
 	equals(t, false, v)
 
+	// -----------------------------------------------
+	// delete a file
+	job = crypto.BlockOp{
+		Type:         crypto.DeleteFile,
+		Data:         [crypto.DataBlockSize]byte{},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
+		RecordNumber: 0,
+	}
+	s.AddJob(job)
+
+	// wait for job to be processed
+	time.Sleep(time.Second * 5)
+	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
+	ok(t, err)
+	_, v = fs.GetAll()["myFile2"]
+	equals(t, false, v)
+
+	// -----------------------------------------------
+	// create the a new file, with the same name
+
+	job = crypto.BlockOp{
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
+		RecordNumber: 0,
+	}
+	s.AddJob(job)
+
+	job = crypto.BlockOp{
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
+		RecordNumber: 0,
+	}
+	s.AddJob(job)
+
+	// wait for job to be processed
+	time.Sleep(time.Second * 5)
+	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
+	ok(t, err)
+	equals(t, uint32(1), fs.GetAll()["myFile2"].NumberOfRecords)
+
 }
 
 // Taken from https://github.com/benbjohnson/testing

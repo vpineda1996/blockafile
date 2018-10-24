@@ -30,7 +30,6 @@ func (m MinerClient) GetBlock(id string) (*crypto.Block, bool, error) {
 	c := make(chan error, 1)
 	go func() { c <- m.client.Call("MinerServer.GetBlock", args, &ans) }()
 
-	// todo vpineda tcp should detect a failure on the connection or just wait for 5 seconds
 	select {
 	case err := <-c:
 		// use err and result

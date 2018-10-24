@@ -199,7 +199,7 @@ func TestSimpleFilesystemTree(t *testing.T) {
 		}
 	})
 
-	t.Run("fails when trying to append to non-existant file", func(t *testing.T) {
+	t.Run("fails when trying to append to non-existent file", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 1,
 			roots:  1,
@@ -212,6 +212,58 @@ func TestSimpleFilesystemTree(t *testing.T) {
 		if err == nil {
 			t.Fail()
 		}
+	})
+
+	t.Run("fails when trying to delete to non-existent file", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := buildFSTree(treeDef)
+		_, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err == nil {
+			t.Fail()
+		}
+	})
+
+	t.Run("fails on duplicated instruction", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0,
+				102, 2, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := buildFSTree(treeDef)
+		_, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err == nil {
+			t.Fail()
+		}
+	})
+
+	t.Run("it deletes to existent file", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0,
+				102, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := buildFSTree(treeDef)
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err != nil {
+			log.Println(err)
+			t.Fail()
+		}
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
 	})
 }
 
@@ -307,6 +359,41 @@ func TestComplexFilesystemTree(t *testing.T) {
 
 		equals(t, datum[0][:], []byte(fs["c"].Data)[:crypto.DataBlockSize])
 		equals(t, datum[1][:], []byte(fs["c"].Data)[crypto.DataBlockSize:])
+	})
+
+	t.Run("long branch with multiple files with append, multi user append and delete", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 5, 2, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				106, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 1, int(crypto.CreateFile), 0,
+				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile), 0,
+				108, 2, 2, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				110, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile), 0,
+				111, 9, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile), 1,
+				121, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.DeleteFile), 1,
+				122, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.CreateFile), 1},
+		}
+		tree := buildFSTree(treeDef)
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 3, len(fs))
+
+		equals(t, "1", fs["a"].Creator)
+
+		equals(t, "2", fs["b"].Creator)
+
+		equals(t, "2", fs["c"].Creator)
+
+		equals(t, []byte{}, []byte(fs["c"].Data))
 	})
 
 	t.Run("fails to create a tree with conflicting appends", func(t *testing.T) {

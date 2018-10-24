@@ -21,6 +21,7 @@ type BlockOpData [DataBlockSize]byte
 const (
 	CreateFile BlockOpType = iota
 	AppendFile
+	DeleteFile
 )
 
 type BlockOp struct {

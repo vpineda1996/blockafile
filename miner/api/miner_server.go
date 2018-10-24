@@ -34,8 +34,6 @@ type GetNodeRes struct {
 	Host string
 }
 
-// TODO SUPER IMPORTANT EVERY TIME THAT SOMEONE CALLS US ADD IT TO LIST OF CLIENTS!!!!!!
-
 func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error {
 	m.listener.AddHost(args.Host)
 	bk, ok := m.listener.GetBlock(args.Id)
