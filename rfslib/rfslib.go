@@ -11,12 +11,12 @@ it.
 package rfslib
 
 import (
+	"../fdlib"
 	"../shared"
 	"bytes"
 	"encoding/gob"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"net"
 	"os"
@@ -162,8 +162,12 @@ func Initialize(localAddr string, minerAddr string) (rfs RFS, err error) {
 	// Initialize failure detector
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
-	epochNonce := r1.Intn(math.MaxUint64)
-	fd, notifyCh, err := InitializeFDLib(uint64(epochNonce), 5)
+	epochNonce := r1.Uint64()
+	fd, notifyCh, err := fdlib.InitializeFDLib(uint64(epochNonce), 5)
+	if err != nil {
+		return nil, err
+	}
+	fd.AddMonitor(localAddr, minerAddr, 10)
 
 	rfsInstance = new(RFSInstance)
 	rfsInstance.tcpConn = conn
@@ -186,8 +190,8 @@ var rfsInstance *RFSInstance = nil
 type RFSInstance struct {
 	tcpConn *net.TCPConn
 	minerAddr string
-	fdlib FD
-	failureNotifyChannel <-chan FailureDetected
+	fdlib fdlib.FD
+	failureNotifyChannel <-chan fdlib.FailureDetected
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////

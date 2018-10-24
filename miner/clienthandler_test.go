@@ -177,7 +177,7 @@ func TestServiceClientRequest(t *testing.T) {
 }
 
 func generateRandomPort() int {
-	return 49152 + randomNumGenerator.Intn(16383)
+	return 8080 + randomNumGenerator.Intn(110)
 }
 
 func sendRequest(request interface{}, tcpConn *net.TCPConn, t *testing.T) {

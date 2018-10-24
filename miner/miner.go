@@ -1,10 +1,15 @@
 package main
 
 import (
+	"../fdlib"
 	. "../shared"
+	"encoding/json"
+	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"sync"
+	"time"
 )
 
 // Miner type declaration
@@ -18,18 +23,57 @@ type Miner interface {
 	AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType)
 }
 
+type MinerConfiguration struct {
+	MinedCoinsPerOpBlock int
+	MinedCoinsPerNoOpBlock int
+	NumCoinsPerFileCreate int
+	GenOpBlockTimeout int
+	GenesisBlockHash string
+	PowPerOpBlock int
+	PowPerNoOpBlock int
+	ConfirmsPerFileCreate int
+	ConfirmsPerFileAppend int
+	MinerID string
+	PeerMinersAddrs []string
+	IncomingMinersAddr string
+	OutgoingMinersIP string
+	IncomingClientsAddr string
+}
+
 var lg = log.New(os.Stdout, "miner: ", log.Ltime)
 
 func main() {
-	// TODO. Currently all the miner does is listen for clients and respond to requests
-	var minerInstance Miner = MinerInstance{}
+	argsWithoutProg := os.Args[1:]
+	if len(argsWithoutProg) != 1 {
+		lg.Println("usage: go run miner.go [settings]")
+		os.Exit(1)
+	}
+
+	// TODO ksenia. Currently all the miner does is listen for clients and respond to requests
+	conf, err := ParseConfig(argsWithoutProg[0])
+	if err != nil {
+		lg.Println(err)
+		os.Exit(1)
+	}
+	var minerInstance Miner = MinerInstance{minerConf: conf}
+
+	// Initialize failure detector and start responding
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	epochNonce := r1.Uint64()
+	fd, _, err := fdlib.InitializeFDLib(uint64(epochNonce), 5)
+	if err != nil {
+		lg.Println(err)
+		os.Exit(1)
+	}
+	fd.StartResponding(conf.IncomingClientsAddr)
+
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	lg.Println("Listening for clients...")
 
-	// TODO. This address should be a setting, not hardcoded.
 	ci := ClientHandler{
-		ListenHost: "127.0.0.1:9090",
+		ListenHost: conf.IncomingClientsAddr,
 		miner:      &minerInstance,
 		waitGroup:  wg,
 	}
@@ -38,7 +82,7 @@ func main() {
 }
 
 type MinerInstance struct {
-	// TODO. Fields
+	minerConf MinerConfiguration
 }
 
 // errorType can be one of: FILE_EXISTS, BAD_FILENAME, NO_ERROR
@@ -78,4 +122,26 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 	lg.Println("Handling append record request")
 	// return 0, shared.MAX_LEN_REACHED
 	return 0, -1
+}
+
+/////////// Helpers ///////////////////////////////////////////////////////
+
+func ParseConfig(fileName string) (MinerConfiguration, error){
+	var m MinerConfiguration
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		return MinerConfiguration{}, err
+	}
+
+	b, err := ioutil.ReadAll(file)
+	if err != nil {
+		return MinerConfiguration{}, err
+	}
+
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		return MinerConfiguration{}, err
+	}
+	return m, nil
 }

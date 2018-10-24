@@ -1,4 +1,4 @@
-package rfslib
+package fdlib
 
 /*
 
@@ -15,7 +15,9 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"log"
 	"net"
+	"os"
 	"sync"
 	"time"
 )
@@ -74,6 +76,9 @@ type FD interface {
 
 // Private instance of implemented FD interface.
 var fdlibInstance *fdlib
+
+// Logger
+var lg = log.New(os.Stdout, "fdlib: ", log.Ltime)
 
 // The constructor for a new FD object instance. Note that notifyCh
 // can only be received on by the client that receives it from
