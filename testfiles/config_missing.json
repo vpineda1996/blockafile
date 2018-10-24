@@ -3,7 +3,6 @@
   "MinedCoinsPerNoOpBlock" : 4,
   "NumCoinsPerFile" : 4,
   "GenOpBlockTimeout" : 5,
-  "GenesisBlockHash" : "83218ac34c1834c26781fe4bde918ee4",
   "PowPerOpBlock" : 4,
   "PowPerNoOpBlock" : 4,
   "ConfirmsPerFileCreate" : 2,
