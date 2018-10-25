@@ -17,10 +17,13 @@ const DataBlockSize = 512
 
 type BlockOpType uint32
 type BlockOpData [DataBlockSize]byte
+
 const (
 	CreateFile BlockOpType = iota
 	AppendFile
+	DeleteFile
 )
+
 type BlockOp struct {
 	Type BlockOpType
 	// Miner id of the person that create the request
@@ -31,6 +34,7 @@ type BlockOp struct {
 }
 
 type BlockType int
+
 const (
 	NoOpBlock BlockType = iota
 	RegularBlock
@@ -43,9 +47,9 @@ type Block struct {
 	// In the case of any regular block this holds the hash of the preceding node
 	// however if the block is of type GenesisBlock, it will hold that block id
 	PrevBlock [md5.Size]byte
-	Records []*BlockOp
-	MinerId string
-	Nonce uint32
+	Records   []*BlockOp
+	MinerId   string
+	Nonce     uint32
 }
 
 func (b *Block) serialize() []byte {
@@ -88,12 +92,12 @@ func (b *Block) Id() string {
 
 func (b *Block) valid(ser []byte, zeros int) bool {
 	hash := b.hash(ser)
-	for i := len(hash) - 1; i >= 0 && zeros > 0; zeros, i = zeros - 8, i - 1 {
+	for i := len(hash) - 1; i >= 0 && zeros > 0; zeros, i = zeros-8, i-1 {
 		mask := uint8(0xFF)
 		if zeros < 8 {
-			mask = mask >> uint(7 - zeros)
+			mask = mask >> uint(7-zeros)
 		}
-		if hash[i] & mask != 0 {
+		if hash[i]&mask != 0 {
 			return false
 		}
 	}
@@ -120,20 +124,23 @@ func (b *Block) FindNonce(zerosOp int, zerosNoOp int) {
 		zeros = zerosNoOp
 	}
 
+	b.FindNonceWithStopSignal(zeros, new(bool))
+}
+
+func (b *Block) FindNonceWithStopSignal(zeros int, stopSig *bool) {
 	start := uint32(rand.Int())
 	ser := b.serialize()
 
-	for !b.valid(ser, zeros) {
+	for !b.valid(ser, zeros) && !*stopSig {
 		b.Nonce = start
 
 		intBuff := make([]byte, unsafe.Sizeof(uint32(1)))
 		binary.LittleEndian.PutUint32(intBuff, b.Nonce)
-		copy(ser[len(ser) - 4:], intBuff)
+		copy(ser[len(ser)-4:], intBuff)
 
 		start += 1
 	}
 }
-
 
 type BlockElement struct {
 	Block *Block

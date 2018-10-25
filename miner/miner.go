@@ -5,6 +5,7 @@ import (
 	"../fdlib"
 	. "../shared"
 	"./state"
+	"crypto/md5"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -59,9 +60,11 @@ func main() {
 	}
 
 	// Initialize miner state
+	var blockHashBytes [md5.Size]byte
+	copy(blockHashBytes[:], conf.GenesisBlockHash)
 	minerStateConf := state.Config{
-		AppendFee: state.Balance(conf.ConfirmsPerFileAppend),
-		CreateFee: state.Balance(conf.ConfirmsPerFileCreate),
+		AppendFee: state.Balance(1),
+		CreateFee: state.Balance(conf.NumCoinsPerFileCreate),
 		OpReward: state.Balance(conf.MinedCoinsPerOpBlock),
 		NoOpReward: state.Balance(conf.MinedCoinsPerNoOpBlock),
 		OpNumberOfZeros: int(conf.PowPerOpBlock),
@@ -69,6 +72,10 @@ func main() {
 		Address: "", // todo ksenia. we have several addresses in config, need to update this
 		ConfirmsPerFileCreate: int(conf.ConfirmsPerFileCreate),
 		ConfirmsPerFileAppend: int(conf.ConfirmsPerFileAppend),
+		OpPerBlock: 30, // todo victor can you give me some insight as to what this value should be?
+		MinerId: conf.MinerID,
+		GenesisBlockHash: blockHashBytes,
+		GenOpBlockTimeout: conf.GenOpBlockTimeout,
 	}
 	ms := state.NewMinerState(minerStateConf, conf.PeerMinersAddrs)
 
@@ -118,15 +125,14 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 		job.Type = crypto.CreateFile
 		job.Creator = miner.minerConf.MinerID
 		job.Filename = fname
-		minerStateImpl := miner.minerState.(state.MinerStateImpl)
 		block := crypto.Block{
 			Type:      crypto.RegularBlock,
-			PrevBlock: nil /*todo ksenia*/,
+			PrevBlock: [16]byte{} /*todo ksenia*/,
 			Records:   []*crypto.BlockOp{job},
 			MinerId:   miner.minerConf.MinerID}
 
 		// validate against file system state
-		_, err := minerStateImpl.Tm.MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
+		_, _, err := (*miner.minerState.Tm).MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
 		if err != nil {
 			// todo ksenia. different errors are handled differently.
 			// 1. check for file already exists (return error to client)
@@ -134,7 +140,8 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 		}
 
 		// validate against accounts state
-		_, err = minerStateImpl.Tm.MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block})
+		// todo what is the second argument to ValidateNewAccountState?
+		_, err = (*miner.minerState.Tm).MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block}, "")
 		if err != nil {
 			// todo ksenia. different errors are handled differently.
 			// 1. check for not enough money (retry)
@@ -143,7 +150,7 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 		}
 
 		// add job wait for it to complete
-		minerStateImpl.AddJob(job)
+		miner.minerState.AddJob(*job)
 		// todo ksenia
 		return NO_ERROR
 	}
@@ -170,7 +177,7 @@ func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, error
 
 	fs := miner.getFileSystemState()
 
-	file, ok := fs.GetFile(state.Filename(fname))
+	file, ok := fs.GetFile(Filename(fname))
 	if !ok {
 		return 0, FILE_DOES_NOT_EXIST
 	}
@@ -184,7 +191,7 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 
 	fs := miner.getFileSystemState()
 
-	file, ok := fs.GetFile(state.Filename(fname))
+	file, ok := fs.GetFile(Filename(fname))
 	if !ok {
 		return read_result, FILE_DOES_NOT_EXIST
 	}
@@ -202,7 +209,7 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 		fs := miner.getFileSystemState()
 
 		// check if file already exists
-		file, ok := fs.GetFile(state.Filename(fname))
+		file, ok := fs.GetFile(Filename(fname))
 		if !ok {
 			return 0, FILE_DOES_NOT_EXIST
 		}
@@ -214,15 +221,14 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 		job.Filename = fname
 		job.RecordNumber = file.NumberOfRecords
 		copy(job.Data[:], record[:])
-		minerStateImpl := miner.minerState.(state.MinerStateImpl)
 		block := crypto.Block{
 			Type:      crypto.RegularBlock,
-			PrevBlock: nil /*todo ksenia*/,
+			PrevBlock: [16]byte{} /*todo ksenia*/,
 			Records:   []*crypto.BlockOp{job},
 			MinerId:   miner.minerConf.MinerID}
 
 		// validate against file system state
-		_, err := minerStateImpl.Tm.MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
+		_, _, err := (*miner.minerState.Tm).MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
 		if err != nil {
 			// 1. check for file does not exist (return error to client)
 			return 0, FILE_DOES_NOT_EXIST
@@ -233,7 +239,8 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 		}
 
 		// validate against accounts state
-		_, err = minerStateImpl.Tm.MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block})
+		// todo second argument?
+		_, err = (*miner.minerState.Tm).MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block}, "")
 		if err != nil {
 			// todo ksenia. different errors are handled differently.
 			// 1. check for not enough money (retry)
@@ -242,7 +249,7 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 		}
 
 		// add job wait for it to complete
-		minerStateImpl.AddJob(job)
+		miner.minerState.AddJob(*job)
 		// todo ksenia
 
 		return 0, NO_ERROR

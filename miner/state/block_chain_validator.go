@@ -6,15 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 )
 import "../../shared/datastruct"
-
 
 type BlockChainValidator struct {
 	cnf                 Config
 	mTree               *datastruct.MRootTree
 	lastStateAccount    AccountsState
 	lastFilesystemState FilesystemState
+	mtx                 *sync.Mutex
 
 	generatingNodeId string
 }
@@ -86,6 +87,8 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 		return nil, err
 	}
 
+	bcv.mtx.Lock()
+	defer bcv.mtx.Unlock()
 	// generate history if need be
 	if bcv.generatingNodeId != root.Id {
 		bcas, err := NewAccountsState(
@@ -106,12 +109,12 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 		bcv.lastFilesystemState = fss
 	}
 
-	fsUp, err := bcv.ValidateNewFSState(b)
+	fsUp, deletedFiles, err := bcv.ValidateNewFSState(b)
 	if err != nil {
 		return nil, err
 	}
 
-	accUp, err := bcv.ValidateNewAccountState(b)
+	accUp, err := bcv.ValidateNewAccountState(b, root.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -119,77 +122,187 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 	bcv.generatingNodeId = b.Id()
 
 	bcv.lastStateAccount.update(accUp)
-	bcv.lastFilesystemState.update(fsUp)
+	bcv.lastFilesystemState.update(fsUp, deletedFiles)
 
 	return root, nil
 }
 
+func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *datastruct.Node) []*crypto.BlockOp {
+	if len(ops) == 0 {
+		return ops
+	}
 
-// TODO EC3 delete, do something here
-func (bcv *BlockChainValidator) ValidateNewFSState(b crypto.BlockElement) (map[Filename]*FileInfo, error) {
+	bcv.mtx.Lock()
+	defer bcv.mtx.Unlock()
+
+	if bcv.generatingNodeId != rootNode.Id {
+		bcas, err := NewAccountsState(
+			int(bcv.cnf.AppendFee),
+			int(bcv.cnf.CreateFee),
+			int(bcv.cnf.OpReward),
+			int(bcv.cnf.NoOpReward),
+			rootNode)
+		if err != nil {
+			return []*crypto.BlockOp{}
+		}
+		fss, err := NewFilesystemState(bcv.cnf.ConfirmsPerFileCreate, bcv.cnf.ConfirmsPerFileAppend, rootNode)
+		if err != nil {
+			return []*crypto.BlockOp{}
+		}
+		bcv.generatingNodeId = rootNode.Id
+		bcv.lastStateAccount = bcas
+		bcv.lastFilesystemState = fss
+	}
+
+	newOps, original := ops, -1
+	for original != len(newOps) {
+		original = len(newOps)
+		nFile := make(map[Filename]*FileInfo)
+		var err error
+		newOps, _, err = bcv.validateNewFSBlockOps(newOps, nFile)
+		if err != nil {
+			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
+		}
+
+		nAcc := make(map[Account]Balance)
+		newOps, err = bcv.validateNewAccountBlockOps(newOps, bcv.mTree.GetLongestChain().Id, nAcc)
+		if err != nil {
+			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
+		}
+	}
+	return newOps
+}
+
+func (bcv *BlockChainValidator) ValidateNewFSState(b crypto.BlockElement) (map[Filename]*FileInfo, map[string]bool, error) {
 	res := make(map[Filename]*FileInfo)
 	bcs := b.Block.Records
+	_, deletedFiles, err := bcv.validateNewFSBlockOps(bcs, res)
+	return res, deletedFiles, err
+}
+
+func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
+		res map[Filename]*FileInfo) ([]*crypto.BlockOp, map[string]bool, error) {
+	validOps := make([]*crypto.BlockOp, 0, len(bcs))
+	deletedFiles := make(map[string]bool)
+	var err error
 	fs := bcv.lastFilesystemState.GetAll()
 	for _, tx := range bcs {
 		switch tx.Type {
 		case crypto.CreateFile:
+			if len(tx.Filename) > MAX_FILENAME_LENGTH {
+				err = errors.New("filename is to big for the given file")
+				continue
+			}
+
 			if _, exists := fs[Filename(tx.Filename)]; exists {
-				return nil, FileAlreadyExistsValidationError(tx.Filename)
+				if _, deleted := deletedFiles[tx.Filename]; !deleted {
+					err = errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
+					continue
+				}
 			}
 
 			if _, exists := res[Filename(tx.Filename)]; exists {
-				return nil, FileAlreadyExistsValidationError(tx.Filename)
+				if _, deleted := deletedFiles[tx.Filename]; !deleted {
+					err = errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
+					continue
+				}
 			}
-
-			fi := FileInfo {
-				Data:    make([]byte, 0, crypto.DataBlockSize),
+			lg.Printf("Validator: creating file %v", tx.Filename)
+			fi := FileInfo{
+				Data:            make([]byte, 0, crypto.DataBlockSize),
 				NumberOfRecords: 0,
-				Creator: tx.Creator,
+				Creator:         tx.Creator,
 			}
 			res[Filename(tx.Filename)] = &fi
+			validOps = append(validOps, tx)
+			if _, deleted := deletedFiles[tx.Filename]; deleted {
+				delete(deletedFiles, tx.Filename)
+			}
 		case crypto.AppendFile:
+			// check if the file is deleted, if it is make this tnx invalid
+			if _, deleted := deletedFiles[tx.Filename]; deleted {
+				err = errors.New("cannot append to deleted file " + tx.Filename)
+				continue
+			}
+
+			// otherwise, proceed with append
 			if f, exists := fs[Filename(tx.Filename)]; exists {
 				if f.NumberOfRecords >= MAX_RECORD_COUNT {
-					return nil, MaxLengthReachedValidationError(tx.Filename)
+					err = MaxLengthReachedValidationError{tx.Filename}
+					continue
 				}
 
 				newRecordNo := f.NumberOfRecords + 1
 				if fi, inRes := res[Filename(tx.Filename)]; inRes {
 					// ugly but we need it :(
 					if tx.RecordNumber != fi.NumberOfRecords {
-						return nil, AppendDuplicateValidationError{
-							RecordNumber: int(tx.RecordNumber), FileName: tx.Filename}
+						err = errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
+							" to file " + tx.Filename + " duplicated in chain, failing, expected " + strconv.Itoa(int(fi.NumberOfRecords)))
+						continue
 					}
 					newRecordNo = fi.NumberOfRecords + 1
 				} else if tx.RecordNumber != f.NumberOfRecords {
-					return nil, AppendDuplicateValidationError{
-						RecordNumber: int(tx.RecordNumber), FileName: tx.Filename}
+					err = errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
+						" to file " + tx.Filename + " duplicated in chain, failing")
+					continue
 				}
 
-				fi := FileInfo {
-					Data:    make([]byte, 0, len(f.Data)),
+				fi := FileInfo{
+					Data:            make([]byte, 0, len(f.Data)),
 					NumberOfRecords: newRecordNo,
-					Creator: f.Creator,
+					Creator:         f.Creator,
 				}
 				res[Filename(tx.Filename)] = &fi
 				copy(fi.Data, f.Data)
 				lg.Printf("Adding record no %v to file %v", tx.RecordNumber, tx.Filename)
 				fi.Data = append(fi.Data, FileData(tx.Data[:])...)
+				validOps = append(validOps, tx)
+			} else if donkey, inRes := res[Filename(tx.Filename)]; inRes {
+				if tx.RecordNumber != donkey.NumberOfRecords {
+					err = errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
+						" to file " + tx.Filename + " duplicated in chain, failing, expected " + strconv.Itoa(int(donkey.NumberOfRecords)))
+					continue
+				}
+				monkey := FileInfo{
+					Data:            make([]byte, 0, len(donkey.Data)),
+					NumberOfRecords: donkey.NumberOfRecords + 1,
+					Creator:         donkey.Creator,
+				}
+				res[Filename(tx.Filename)] = &monkey
+				copy(monkey.Data, donkey.Data)
+				lg.Printf("Adding record no %v to file %v", tx.RecordNumber, tx.Filename)
+				monkey.Data = append(monkey.Data, FileData(tx.Data[:])...)
+				validOps = append(validOps, tx)
 			} else {
-				return nil, FileDoesNotExistValidationError(tx.Filename)
+				err = errors.New("file " + tx.Filename + " doesn't exist but tried to append")
+				continue
 			}
+		case crypto.DeleteFile:
+			// super easy, when we delete a file most of the hard work will be done by create, update and append
+			if _, deleted := deletedFiles[tx.Filename]; deleted {
+				err = errors.New("cannot delete a file that has already been deleted")
+				continue
+			}
+			if _, inRes := res[Filename(tx.Filename)]; !inRes {
+				if _, exists := fs[Filename(tx.Filename)]; !exists {
+					err = errors.New("cannot delete a file that doesn't exist")
+					continue
+				}
+			}
+			lg.Printf("Validator: removing file %v", tx.Filename)
+			validOps = append(validOps, tx)
+			deletedFiles[tx.Filename] = true
 		default:
-			return nil, errors.New("invalid fs op")
+			err = errors.New("invalid fs op")
+			continue
 		}
 	}
-	return res, nil
+	return validOps, deletedFiles, err
 }
 
-// TODO EC3 delete, do something here
-func (bcv *BlockChainValidator) ValidateNewAccountState(b crypto.BlockElement) (map[Account]Balance, error) {
+func (bcv *BlockChainValidator) ValidateNewAccountState(b crypto.BlockElement, parentBlock string) (map[Account]Balance, error) {
 	res := make(map[Account]Balance)
 	bcs := b.Block.Records
-	accs := bcv.lastStateAccount
 
 	// Award miner
 	switch b.Block.Type {
@@ -201,7 +314,15 @@ func (bcv *BlockChainValidator) ValidateNewAccountState(b crypto.BlockElement) (
 		return nil, errors.New("not a valid block type")
 	}
 
-	for _, tx := range bcs {
+	_, err := bcv.validateNewAccountBlockOps(bcs, parentBlock, res)
+	return res, err
+}
+
+func (bcv *BlockChainValidator) validateNewAccountBlockOps(bcs []*crypto.BlockOp, parentBlock string, res map[Account]Balance) ([]*crypto.BlockOp, error) {
+	accs := bcv.lastStateAccount
+	validOps := make([]*crypto.BlockOp, 0, len(bcs))
+	var err error
+	for idx, tx := range bcs {
 		act := Account(tx.Creator)
 		var txFee Balance
 		switch tx.Type {
@@ -209,8 +330,32 @@ func (bcv *BlockChainValidator) ValidateNewAccountState(b crypto.BlockElement) (
 			txFee = bcv.cnf.CreateFee
 		case crypto.AppendFile:
 			txFee = bcv.cnf.AppendFee
+		case crypto.DeleteFile:
+			// stupidly expensive way of doing this, better options?
+			parent, ok := bcv.mTree.Find(parentBlock)
+			if !ok {
+				err = errors.New("coudn't find parent block to calculate refund")
+			}
+
+			// create node chain
+			nds := transverseChain(parent)
+
+			// fake block to make things work
+			fakeBlock := &crypto.Block{
+				Type: crypto.RegularBlock,
+				Records: bcs,
+			}
+			fakeNode := datastruct.Node{
+				Value: crypto.BlockElement{
+					Block: fakeBlock,
+				},
+			}
+			nds = append(nds, &fakeNode)
+			refund(res, tx.Filename, bcv.cnf.AppendFee, bcv.cnf.CreateFee, nds, len(nds) - 1, idx)
+			validOps = append(validOps, tx)
+			continue
 		default:
-			return nil, errors.New("not a valid file op")
+			return []*crypto.BlockOp{}, errors.New("not a valid file op")
 		}
 
 		// Verify miner has enough balance to perform transaction
@@ -218,16 +363,18 @@ func (bcv *BlockChainValidator) ValidateNewAccountState(b crypto.BlockElement) (
 			res[act] = 0
 		}
 		if b := accs.GetAccountBalance(act) + res[act]; b < txFee {
-			return nil, NotEnoughMoneyValidationError{Account: string(act), ActualMoney: int(b), NeededMoney: int(txFee)}
+			err = errors.New("balance for account " + string(act) + " is not enough, it has " + fmt.Sprintf("%v", b) +
+				" but it needs " + fmt.Sprintf("%v", txFee))
+		} else {
+			// Apply fee to the account
+			res[act] -= txFee
+			validOps = append(validOps, tx)
 		}
-
-		// Apply fee to the account
-		res[act] -= txFee
 	}
-	return res, nil
+	return validOps, err
 }
 
-func getParentNode(mTree *datastruct.MRootTree, id string) (*datastruct.Node, error)  {
+func getParentNode(mTree *datastruct.MRootTree, id string) (*datastruct.Node, error) {
 	root, ok := mTree.Find(id)
 	if !ok {
 		return nil, errors.New("parent not in tree")
@@ -241,26 +388,23 @@ func validateBlockHash(b crypto.BlockElement, zerosOp int, zerosNoOp int) bool {
 
 func NewBlockChainValidator(config Config, mTree *datastruct.MRootTree) *BlockChainValidator {
 	return &BlockChainValidator{
-		cnf:config,
+		cnf:              config,
 		generatingNodeId: "",
-		mTree: mTree,
+		mTree:            mTree,
+		mtx:              new(sync.Mutex),
 	}
 }
 
 func transverseChain(root *datastruct.Node) []*datastruct.Node {
-	res := make([]*datastruct.Node, root.Height + 1)
+	res := make([]*datastruct.Node, root.Height+1)
 	// create list
-	for nd, i := root, 0; nd != nil; nd, i = nd.Next(), i + 1 {
+	for nd, i := root, 0; nd != nil; nd, i = nd.Next(), i+1 {
 		res[i] = nd
 	}
 	// reverse
-	for l, r := 0, len(res) - 1; l < r; l, r = l + 1, r - 1 {
+	for l, r := 0, len(res)-1; l < r; l, r = l+1, r-1 {
 		res[l], res[r] = res[r], res[l]
 	}
 
 	return res
 }
-
-
-
-

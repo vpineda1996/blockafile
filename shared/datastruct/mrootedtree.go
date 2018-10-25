@@ -40,12 +40,11 @@ type Node struct {
 	Parents []*Node
 }
 
-func (n *Node) Next() (*Node)  {
+func (n *Node) Next() *Node {
 	return n.child
 }
 
 var lg = log.New(os.Stdout, "mRootTree: ", log.Lshortfile|log.Lmicroseconds)
-
 
 type MRootTree struct {
 	// The height of the tree
@@ -64,11 +63,10 @@ type MRootTree struct {
 	longestChainHead *Node
 }
 
-func (t *MRootTree) Find(id string) (*Node, bool){
+func (t *MRootTree) Find(id string) (*Node, bool) {
 	v, ok := t.nodes[id]
 	return v, ok
 }
-
 
 // adds an element to the tree given a root, if the head is not a root
 // then, we will add a new root to the tree, head can be nil
@@ -101,7 +99,6 @@ func (t *MRootTree) PrependElement(e Element, head *Node) (*Node, error) {
 		t.nodes[newNode.Id] = &newNode
 	}
 
-
 	// append to map and root keeper
 	if idx, ok := t.rootsFasS[head]; ok {
 		t.roots[idx] = &newNode
@@ -124,7 +121,7 @@ func (t *MRootTree) PrependElement(e Element, head *Node) (*Node, error) {
 }
 
 // Gets all of the roots of the tree
-func (t *MRootTree) GetRoots() ([]*Node) {
+func (t *MRootTree) GetRoots() []*Node {
 	return t.roots[:]
 }
 

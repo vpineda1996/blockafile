@@ -11,11 +11,11 @@ type Account string
 type Balance int
 
 type AccountsState struct {
-	appendFee Balance
-	createFee Balance
-	opReward Balance
+	appendFee  Balance
+	createFee  Balance
+	opReward   Balance
 	noOpReward Balance
-	accounts map[Account]Balance
+	accounts   map[Account]Balance
 }
 
 func (b AccountsState) GetAll() map[Account]Balance {
@@ -30,7 +30,7 @@ func (b AccountsState) GetAccountBalance(acc Account) Balance {
 }
 
 func (b *AccountsState) update(accUp map[Account]Balance) {
-	for k,v := range accUp {
+	for k, v := range accUp {
 		award(b.accounts, k, v)
 	}
 }
@@ -58,11 +58,11 @@ func NewAccountsState(
 		return AccountsState{}, err
 	}
 	return AccountsState{
-		appendFee: Balance(appendFee),
-		createFee: Balance(createFee),
-		opReward: Balance(opReward),
+		appendFee:  Balance(appendFee),
+		createFee:  Balance(createFee),
+		opReward:   Balance(opReward),
 		noOpReward: Balance(noOpReward),
-		accounts: st,
+		accounts:   st,
 	}, nil
 }
 
@@ -98,12 +98,11 @@ func generateState(
 			}
 			// do not award any currency to anybody
 		case crypto.RegularBlock:
-			// TODO ksenia what should be first, award and then spend or vice-versa
 			// award to miner
 			award(res, Account(bae.Block.MinerId), opReward)
 
 			// remove money for all involved accounts
-			err := evaluateBalanceBlockOps(res, bae.Block.Records, appendFee, createFee)
+			err := evaluateBalanceBlockOps(res, bae.Block.Records, appendFee, createFee, nodes, idx)
 			if err != nil {
 				return nil, err
 			}
@@ -115,9 +114,9 @@ func generateState(
 	return res, nil
 }
 
-// TODO EC1 delete: do something with block reward here
-func evaluateBalanceBlockOps(accs map[Account]Balance, bcs []*crypto.BlockOp, appendFee Balance, createFee Balance) error {
-	for _, tx := range bcs {
+func evaluateBalanceBlockOps(accs map[Account]Balance, bcs []*crypto.BlockOp,
+	appendFee Balance, createFee Balance, nds []*datastruct.Node, currBlockIdx int) error {
+	for idx, tx := range bcs {
 		switch tx.Type {
 		case crypto.CreateFile:
 			err := spend(accs, Account(tx.Creator), createFee)
@@ -129,6 +128,8 @@ func evaluateBalanceBlockOps(accs map[Account]Balance, bcs []*crypto.BlockOp, ap
 			if err != nil {
 				return err
 			}
+		case crypto.DeleteFile:
+			refund(accs, tx.Filename, appendFee, createFee, nds, currBlockIdx, idx)
 		default:
 			return errors.New("Maria Magdalena (You're a victim of the fight You need love)")
 		}
@@ -136,7 +137,56 @@ func evaluateBalanceBlockOps(accs map[Account]Balance, bcs []*crypto.BlockOp, ap
 	return nil
 }
 
-func spend(accs map[Account]Balance, act Account, fee Balance) error  {
+// ASSUMPTION: ALL OF THE TRANSACTIONS IN THE BLOCK CHAIN ARE VALID FROM A FILESYSTEM PERSPECTIVE
+func refund(accs map[Account]Balance, filename string, appendFee Balance, createFee Balance,
+	nds []*datastruct.Node, currBlockIdx int, curTnxId int) {
+	// start from most current until you see a delete
+	// special handling for current block
+
+	fnApplyTx := func(tx *crypto.BlockOp) bool {
+		if tx.Filename == filename {
+			if _, ok := accs[Account(tx.Creator)]; !ok {
+				accs[Account(tx.Creator)] = 0
+			}
+			switch tx.Type {
+			case crypto.CreateFile:
+				lg.Printf("Refunding %v: %v ", tx.Creator, createFee)
+				award(accs, Account(tx.Creator), createFee)
+				return true
+			case crypto.DeleteFile:
+				return true
+			case crypto.AppendFile:
+				lg.Printf("Refunding %v: %v", tx.Creator, appendFee)
+				award(accs, Account(tx.Creator), appendFee)
+			}
+		}
+		return false
+	}
+
+	bae := nds[currBlockIdx].Value.(crypto.BlockElement).Block
+	for j := curTnxId - 1; j >= 0; j-- {
+		tx := bae.Records[j]
+		if fnApplyTx(tx) {
+			return
+		}
+	}
+
+	// for the rest of the chain handle it as you should until you see a delete record
+	for i := currBlockIdx - 1; i >= 0; i-- {
+		bae := nds[i].Value.(crypto.BlockElement).Block
+		if bae.Type != crypto.RegularBlock {
+			continue
+		}
+		for j := len(bae.Records) - 1; j >= 0; j-- {
+			tx := bae.Records[j]
+			if fnApplyTx(tx) {
+				return
+			}
+		}
+	}
+}
+
+func spend(accs map[Account]Balance, act Account, fee Balance) error {
 	lg.Printf("Account %v spent %v", act, fee)
 	if v, ok := accs[act]; ok {
 		if v >= fee {

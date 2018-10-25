@@ -188,7 +188,7 @@ func TearDown() (err error) {
 var rfsInstance *RFSInstance = nil
 
 type RFSInstance struct {
-	tcpConn *net.TCPConn
+	tcpConn   *net.TCPConn
 	minerAddr string
 	fdlib fdlib.FD
 	failureNotifyChannel <-chan fdlib.FailureDetected

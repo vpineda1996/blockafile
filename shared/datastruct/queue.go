@@ -1,24 +1,24 @@
 package datastruct
 
-type Queue struct{
+type Queue struct {
 	enqueue, dequeue Stack
 }
 
-type QueueElement interface {}
+type QueueElement interface{}
 
-func (queue *Queue) Enqueue(n QueueElement){
+func (queue *Queue) Enqueue(n QueueElement) {
 	queue.enqueue.Push(n)
 }
 
-func (queue *Queue) Dequeue()(QueueElement, bool){
+func (queue *Queue) Dequeue() (QueueElement, bool) {
 	v, ok := queue.dequeue.Pop()
-	if ok{
+	if ok {
 		return v, true
 	}
 
 	for {
 		v, ok := queue.enqueue.Pop()
-		if !ok{
+		if !ok {
 			break
 		}
 
@@ -49,19 +49,19 @@ func (queue *Queue) Len() int {
 func (queue *Queue) Del(eq func(QueueElement) bool) bool {
 	for i, v := range queue.dequeue.arr {
 		if eq(v) {
-			if i < len(queue.dequeue.arr) - 1 {
-				queue.dequeue.arr = append(queue.dequeue.arr[:i], queue.dequeue.arr[i+1:])
+			if i < len(queue.dequeue.arr)-1 {
+				queue.dequeue.arr = append(queue.dequeue.arr[:i], queue.dequeue.arr[i+1:]...)
 			} else {
 				queue.dequeue.arr = queue.dequeue.arr[:i]
 			}
 			return true
 		}
-		
+
 	}
 	for i, v := range queue.enqueue.arr {
 		if eq(v) {
-			if i < len(queue.enqueue.arr) - 1 {
-				queue.enqueue.arr = append(queue.enqueue.arr[:i], queue.enqueue.arr[i+1:])
+			if i < len(queue.enqueue.arr)-1 {
+				queue.enqueue.arr = append(queue.enqueue.arr[:i], queue.enqueue.arr[i+1:]...)
 			} else {
 				queue.enqueue.arr = queue.enqueue.arr[:i]
 			}
@@ -71,22 +71,22 @@ func (queue *Queue) Del(eq func(QueueElement) bool) bool {
 	return false
 }
 
-type Stack struct{
+type Stack struct {
 	arr []QueueElement
 }
 
-func (s *Stack)Push(n QueueElement){
+func (s *Stack) Push(n QueueElement) {
 	s.arr = append(s.arr, n)
 }
 
-func (s *Stack) Pop()(QueueElement, bool){
+func (s *Stack) Pop() (QueueElement, bool) {
 	if len(s.arr) == 0 {
 		return nil, false
 	}
 
-	lastIdx := len(s.arr)-1
+	lastIdx := len(s.arr) - 1
 	v := s.arr[lastIdx]
-	s.arr =s.arr[:lastIdx]
+	s.arr = s.arr[:lastIdx]
 
 	return v, true
 }

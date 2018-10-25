@@ -7,12 +7,22 @@ then
 	exit 1
 fi
 
+removeLogFiles() {
+    folder=$1
+    rm ${folder}/*-Log.txt 2>&1  &> /dev/null
+}
 testFolder() {
     folderName=$1
     go test ./${folderName}
+    removeLogFiles ${folderName}
 }
 
 testFolder crypto
 testFolder miner/api
+
 testFolder miner/state
+testFolder miner/block_calculators
 testFolder shared/datastruct
+testFolder integration_tests
+testFolder integration_tests/two_miners
+

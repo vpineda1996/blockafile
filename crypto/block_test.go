@@ -13,45 +13,45 @@ import (
 
 func TestSimpleBlock(t *testing.T) {
 	record := BlockOp{
-		Type:CreateFile,
-		Creator: "",
-		Data: BlockOpData{20},
+		Type:     CreateFile,
+		Creator:  "",
+		Data:     BlockOpData{20},
 		Filename: "",
 	}
 	records := make([]*BlockOp, 1)
 	records[0] = &record
-	prevBlock := [md5.Size]byte {20, 32, 1}
+	prevBlock := [md5.Size]byte{20, 32, 1}
 	minerId := "asdasf122"
 	nonce := uint32(232412)
 	t.Run("simple hashing for a no block", func(t *testing.T) {
 		bk := Block{
-			Type: NoOpBlock,
-			Nonce: nonce,
-			MinerId: minerId,
+			Type:      NoOpBlock,
+			Nonce:     nonce,
+			MinerId:   minerId,
 			PrevBlock: prevBlock,
-			Records: make([]*BlockOp, 0),
+			Records:   make([]*BlockOp, 0),
 		}
-		equals(t, []byte{86, 84, 86 ,126 ,15 ,25, 91, 19 ,255, 232, 161, 94, 5 ,164, 249, 15},bk.Hash())
+		equals(t, []byte{86, 84, 86, 126, 15, 25, 91, 19, 255, 232, 161, 94, 5, 164, 249, 15}, bk.Hash())
 	})
 
 	t.Run("simple for a genesis block", func(t *testing.T) {
 		bk := Block{
-			Type: GenesisBlock,
-			Nonce: nonce,
-			MinerId: minerId,
+			Type:      GenesisBlock,
+			Nonce:     nonce,
+			MinerId:   minerId,
 			PrevBlock: prevBlock,
-			Records: records,
+			Records:   records,
 		}
-		equals(t, []byte{20,32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},bk.Hash())
+		equals(t, []byte{20, 32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, bk.Hash())
 	})
 
 	t.Run("hashing for a regular block with one entry", func(t *testing.T) {
 		bk := Block{
-			Type: RegularBlock,
-			Nonce: nonce,
-			MinerId: minerId,
+			Type:      RegularBlock,
+			Nonce:     nonce,
+			MinerId:   minerId,
 			PrevBlock: prevBlock,
-			Records: records,
+			Records:   records,
 		}
 		equals(t,
 			[]byte{0x95, 0x6, 0x6f, 0xeb, 0xb, 0x15, 0x7e, 0xd7, 0xaf, 0xbe, 0x3e, 0x41, 0x84, 0x5d, 0x83, 0xca},
@@ -61,19 +61,19 @@ func TestSimpleBlock(t *testing.T) {
 
 func TestNonceFinding(t *testing.T) {
 	record := BlockOp{
-		Type:CreateFile,
-		Creator: "",
-		Data: BlockOpData{20},
+		Type:     CreateFile,
+		Creator:  "",
+		Data:     BlockOpData{20},
 		Filename: "",
 	}
 	records := make([]*BlockOp, 1)
 	records[0] = &record
-	prevBlock := [md5.Size]byte {20, 32, 1}
+	prevBlock := [md5.Size]byte{20, 32, 1}
 	minerId := "asdasf122"
 	nonce := uint32(232412)
 	tests := []struct {
 		zeros int
-		mask []byte
+		mask  []byte
 	}{
 		{1, []byte{0x1}},
 		{4, []byte{0xF}},
@@ -85,17 +85,17 @@ func TestNonceFinding(t *testing.T) {
 	for _, test := range tests {
 		t.Run(strconv.Itoa(test.zeros), func(t *testing.T) {
 			bk := Block{
-				Type: RegularBlock,
-				Nonce: nonce,
-				MinerId: minerId,
+				Type:      RegularBlock,
+				Nonce:     nonce,
+				MinerId:   minerId,
 				PrevBlock: prevBlock,
-				Records: records,
+				Records:   records,
 			}
 			bk.FindNonce(test.zeros, test.zeros)
 			h := bk.Hash()
 			hSize := len(h)
 			for i, msk := range test.mask {
-				if h[hSize - 1 - i] & msk != 0 {
+				if h[hSize-1-i]&msk != 0 {
 					t.Fail()
 				}
 			}
@@ -105,24 +105,24 @@ func TestNonceFinding(t *testing.T) {
 
 func TestEncoding(t *testing.T) {
 	record := BlockOp{
-		Type:CreateFile,
-		Creator: "",
-		Data: BlockOpData{20},
+		Type:     CreateFile,
+		Creator:  "",
+		Data:     BlockOpData{20},
 		Filename: "",
 	}
 	records := make([]*BlockOp, 1)
 	records[0] = &record
-	prevBlock := [md5.Size]byte {20, 32, 1}
+	prevBlock := [md5.Size]byte{20, 32, 1}
 	minerId := "asdasf122"
 	nonce := uint32(232412)
 
 	t.Run("hashing for a regular block with one entry", func(t *testing.T) {
 		bk := Block{
-			Type: RegularBlock,
-			Nonce: nonce,
-			MinerId: minerId,
+			Type:      RegularBlock,
+			Nonce:     nonce,
+			MinerId:   minerId,
 			PrevBlock: prevBlock,
-			Records: records,
+			Records:   records,
 		}
 
 		be := BlockElement{
@@ -134,8 +134,6 @@ func TestEncoding(t *testing.T) {
 		equals(t, be.Id(), btck.Id())
 	})
 }
-
-
 
 // Taken from https://github.com/benbjohnson/testing
 // assert fails the test if the condition is false.

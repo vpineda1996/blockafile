@@ -2,21 +2,25 @@ package state
 
 import (
 	"../../crypto"
+	"../../shared"
 	"../api"
+	. "../block_calculators"
+	"crypto/md5"
+	"fmt"
+	"github.com/DistributedClocks/GoVector/govec"
 	"log"
 	"os"
+	"time"
 )
 
-type MinerState interface {
-	GetBlock(id string) (*crypto.Block, bool)
-	GetFilesystemState(confirmsPerFileCreate int, confirmsPerFileAppend int) (FilesystemState, error)
-	GetRoots() []*crypto.Block
-	GetAccountState(appendFee int, createFee int, opReward int, noOpReward int) (AccountsState, error)
-}
-
-type MinerStateImpl struct {
-	Tm      *TreeManager
-	clients []*api.MinerClient
+type MinerState struct {
+	// dont ask of the double ptr, its cancer but there is no other way
+	logger  *govec.GoLog
+	Tm      **TreeManager
+	clients *map[string]*api.MinerClient
+	bc      **BlockCalculator
+	minerId string
+	lAddr   string
 }
 
 type Config struct {
@@ -29,34 +33,41 @@ type Config struct {
 	Address               string
 	ConfirmsPerFileCreate int
 	ConfirmsPerFileAppend int
+	OpPerBlock            int
+	MinerId               string
+	GenesisBlockHash      [md5.Size]byte
+	GenOpBlockTimeout     uint8
 }
 
 var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
+var INFO = govec.GoLogOptions{Priority: govec.INFO}
+var ERR = govec.GoLogOptions{Priority: govec.ERROR}
+var WARN = govec.GoLogOptions{Priority: govec.WARNING}
 
-func (s MinerStateImpl) GetFilesystemState(
+func (s MinerState) GetFilesystemState(
 	confirmsPerFileCreate int,
 	confirmsPerFileAppend int) (FilesystemState, error) {
-	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, s.Tm.GetLongestChain())
+	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, (*s.Tm).GetLongestChain())
 }
 
-func (s MinerStateImpl) GetBlock(id string) (*crypto.Block, bool){
-	return s.Tm.GetBlock(id)
+func (s MinerState) GetBlock(id string) (*crypto.Block, bool) {
+	return (*s.Tm).GetBlock(id)
 }
 
-func (s MinerStateImpl) GetRoots() []*crypto.Block {
-	return s.Tm.GetRoots()
+func (s MinerState) GetRoots() []*crypto.Block {
+	return (*s.Tm).GetRoots()
 }
 
-func (s MinerStateImpl) GetAccountState(
+func (s MinerState) GetAccountState(
 	appendFee int,
 	createFee int,
 	opReward int,
 	noOpReward int) (AccountsState, error) {
-	return NewAccountsState(appendFee, createFee, opReward, noOpReward, s.Tm.GetLongestChain())
+	return NewAccountsState(appendFee, createFee, opReward, noOpReward, (*s.Tm).GetLongestChain())
 }
 
-func (s MinerStateImpl) GetRemoteBlock(id string) (*crypto.Block, bool) {
-	for _, c := range s.clients {
+func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
+	for _, c := range *s.clients {
 		nd, ok, err := c.GetBlock(id)
 		if err != nil {
 			// todo vpineda prob remove that host from the host list
@@ -70,9 +81,9 @@ func (s MinerStateImpl) GetRemoteBlock(id string) (*crypto.Block, bool) {
 	return nil, false
 }
 
-func (s MinerStateImpl) GetRemoteRoots() ([]*crypto.Block) {
+func (s MinerState) GetRemoteRoots() []*crypto.Block {
 	blocks := make(map[string]*crypto.Block)
-	for _, c := range s.clients {
+	for _, c := range *s.clients {
 		arr, err := c.GetRoots()
 		if err != nil {
 			// todo vpineda prob remove that host from the host list
@@ -93,66 +104,155 @@ func (s MinerStateImpl) GetRemoteRoots() ([]*crypto.Block) {
 	return blockArr
 }
 
-func (s MinerStateImpl) OnNewBlock(b *crypto.Block) {
-	panic("implement me")
+// call from the tree when a block was confirmed and added to the tree
+func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
+	// notify calculators
+	s.logger.LogLocalEvent(fmt.Sprintf(" Block %v added to tree", b.Id()), INFO)
+	(*s.bc).RemoveJobsFromBlock(b)
 }
 
-func (s MinerStateImpl) OnNewBlockInLongestChain(b *crypto.Block) {
-	panic("implement me")
+func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
+	// todo notify to any listener
+	s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
 }
 
-func (s MinerStateImpl) AddBlock(b *crypto.Block) {
-	lg.Printf("added new block: %x", b.Hash())
+func (s MinerState) AddBlock(b *crypto.Block) {
 	// add it to the tree manager and then broadcast the block
-	s.Tm.AddBlock(crypto.BlockElement{
-		Block: b,
-	})
-	// bkst block
-	s.broadcastBlock(b)
+	if !(*s.Tm).Exists(b) {
+		err := (*s.Tm).AddBlock(crypto.BlockElement{
+			Block: b,
+		})
+		if err != nil {
+			return
+		}
+		// bkst block
+		s.broadcastBlock(b)
+	} else {
+		s.logger.LogLocalEvent(fmt.Sprintf(" Recieved block %v but I have it", b.Id()), WARN)
+	}
 }
 
-func (s MinerStateImpl) broadcastBlock(b *crypto.Block) {
+func (s MinerState) broadcastBlock(b *crypto.Block) {
 	go func() {
-		for _, c := range s.clients {
+		for _, c := range *s.clients {
 			c.SendBlock(b)
 		}
 	}()
 }
 
-func (s MinerStateImpl) AddJob(b *crypto.BlockOp) {
-	lg.Printf("added new job: %v", b)
-	// todo vpineda add job to miners
-	s.broadcastJob(b)
+func (s MinerState) AddJob(b crypto.BlockOp) {
+	if (*s.bc).JobExists(&b) < 0 {
+		lg.Printf("Added new job: %v", b.Filename)
+		s.logger.LogLocalEvent(fmt.Sprintf(" Enqueuing job for file %v and record %v for miner to work on", b.Filename, b.RecordNumber), INFO)
+		(*s.bc).AddJob(&b)
+		s.broadcastJob(&b)
+	} else {
+		s.logger.LogLocalEvent(fmt.Sprintf(" Recieved job for file %v but I have it", b.Filename), WARN)
+	}
+
 }
 
-func (s MinerStateImpl) broadcastJob(b *crypto.BlockOp) {
+func (s MinerState) broadcastJob(b *crypto.BlockOp) {
 	go func() {
-		for _, c := range s.clients {
+		for _, c := range *s.clients {
 			c.SendJob(b)
 		}
 	}()
 }
 
-func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
-	cls := make([]*api.MinerClient, 0, len(connectedMiningNodes))
-	for _, c := range connectedMiningNodes {
-		conn, err := api.NewMinerCliet(c)
+func (s MinerState) GetHighestRoot() *crypto.Block {
+	return (*s.Tm).GetHighestRoot()
+}
+
+func (s MinerState) GetMinerId() string {
+	return s.minerId
+}
+
+func (s MinerState) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
+	return (*s.Tm).ValidateJobSet(bOps)
+}
+
+func (s MinerState) InLongestChain(id string) int {
+	return (*s.Tm).InLongestChain(id)
+}
+
+func (s MinerState) SleepMiner() {
+	(*s.bc).ShutdownThreads()
+}
+
+func (s MinerState) ActivateMiner(){
+	(*s.bc).StartThreads()
+}
+
+func (s MinerState) AddHost(h string) {
+	if _, ok := (*s.clients)[h]; !ok {
+		conn, err := api.NewMinerClient(h, s.lAddr, s.logger)
 		if err == nil {
-			cls = append(cls, &conn)
+			(*s.clients)[h] = &conn
+		} else {
+			lg.Printf("Couldn't connect to %v due to %v", h, err)
 		}
 	}
-	ms := MinerStateImpl{
-		clients: cls,
+}
+
+func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
+	logger := govec.InitGoVector(config.MinerId, shared.LOGFILE + "_" + config.MinerId, shared.GoVecOpts)
+	cls := make(map[string]*api.MinerClient, len(connectedMiningNodes))
+	for _, c := range connectedMiningNodes {
+		conn, err := api.NewMinerClient(c, config.Address, logger)
+		if err == nil {
+			cls[c] = &conn
+		} else {
+			lg.Printf("Couldn't connect to %v due to %v", c, err)
+		}
 	}
-	var err error
-	ms.Tm = NewTreeManager(config, ms, ms)
-	if err != nil {
-		panic(err)
+	var treePtr *TreeManager
+	var blockCalcPtr *BlockCalculator
+	ms := MinerState{
+		clients: &cls,
+		minerId: config.MinerId,
+		Tm:      &treePtr,
+		bc:      &blockCalcPtr,
+		logger:  logger,
+		lAddr:   config.Address,
+	}
+	treePtr = NewTreeManager(config, ms, ms)
+
+	calcThresh := config.ConfirmsPerFileCreate
+	if config.ConfirmsPerFileAppend > calcThresh {
+		calcThresh = config.ConfirmsPerFileAppend
 	}
 
-	err = api.InitMinerServer(config.Address, ms)
+	blockCalcPtr = NewBlockCalculator(ms,
+		config.OpNumberOfZeros,
+		config.NoOpNumberOfZeros,
+		config.OpPerBlock,
+		time.Duration(config.GenOpBlockTimeout),
+		calcThresh)
+
+	// add genesis block
+	err := (*ms.Tm).AddBlock(crypto.BlockElement{
+		Block: &crypto.Block{
+			Records:   []*crypto.BlockOp{},
+			Type:      crypto.GenesisBlock,
+			PrevBlock: config.GenesisBlockHash,
+			Nonce:     0,
+			MinerId:   "",
+		},
+	})
+
+	if err != nil {
+		panic("cannot add genesis block due to " + fmt.Sprint(err))
+	}
+
+	// start threads
+	(*ms.Tm).StartThreads()
+	(*ms.bc).StartThreads()
+
+	err = api.InitMinerServer(config.Address, ms, ms.logger)
 	if err != nil {
 		panic("cannot init server twice!")
 	}
+
 	return ms
 }

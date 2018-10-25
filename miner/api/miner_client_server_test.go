@@ -3,6 +3,7 @@ package api
 import (
 	"../../crypto"
 	"fmt"
+	"github.com/DistributedClocks/GoVector/govec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -10,6 +11,9 @@ import (
 )
 
 type fakeState struct {
+}
+
+func (fakeState) AddHost(h string) {
 }
 
 func (fakeState) GetBlock(id string) (*crypto.Block, bool) {
@@ -26,23 +30,23 @@ func (fakeState) AddBlock(b *crypto.Block) {
 	}
 }
 
-func (fakeState) AddJob(b *crypto.BlockOp) {
-	if !reflect.DeepEqual(bkJob, *b) {
+func (fakeState) AddJob(b crypto.BlockOp) {
+	if !reflect.DeepEqual(bkJob, b) {
 		panic("error, blocks weren't equal")
 	}
 }
 
 var bkJob = crypto.BlockOp{
-	Type: crypto.CreateFile,
-	Creator: "me",
-	Data: [crypto.DataBlockSize]byte{},
-	Filename: "potato",
+	Type:         crypto.CreateFile,
+	Creator:      "me",
+	Data:         [crypto.DataBlockSize]byte{},
+	Filename:     "potato",
 	RecordNumber: 3,
 }
 
 var bk = crypto.Block{
-	MinerId: "1",
-	Nonce: 2,
+	MinerId:   "1",
+	Nonce:     2,
 	PrevBlock: [16]byte{},
 	Records: []*crypto.BlockOp{
 		{
@@ -53,19 +57,27 @@ var bk = crypto.Block{
 }
 
 var state = fakeState{}
-
+var opts = govec.GoLogConfig{
+	Buffered:      false,
+	PrintOnScreen: false,
+	AppendLog:     false,
+	UseTimestamps: true,
+	LogToFile:     true,
+	Priority:      govec.INFO,
+}
+var loggerS = govec.InitGoVector("serv", "test", opts)
+var loggerV = govec.InitGoVector("client", "test2", opts)
 var host = ":1222"
 
-func init(){
-	var e = InitMinerServer(host, state)
+func init() {
+	var e = InitMinerServer(host, state, loggerS)
 	if e != nil {
 		panic("couldnt init server")
 	}
 }
 
-
 func TestGetNodeTest(t *testing.T) {
-	c, err := NewMinerCliet("localhost" + host)
+	c, err := NewMinerClient("localhost"+host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -80,7 +92,7 @@ func TestGetNodeTest(t *testing.T) {
 }
 
 func TestAddNodeTest(t *testing.T) {
-	c, err := NewMinerCliet("localhost" + host)
+	c, err := NewMinerClient("localhost"+host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -90,7 +102,7 @@ func TestAddNodeTest(t *testing.T) {
 }
 
 func TestGetRoots(t *testing.T) {
-	c, err := NewMinerCliet("localhost" + host)
+	c, err := NewMinerClient("localhost"+host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -101,7 +113,7 @@ func TestGetRoots(t *testing.T) {
 }
 
 func TestSendJob(t *testing.T) {
-	c, err := NewMinerCliet("localhost" + host)
+	c, err := NewMinerClient("localhost"+host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -109,7 +121,6 @@ func TestSendJob(t *testing.T) {
 
 	c.SendJob(&bkJob)
 }
-
 
 // equals fails the test if exp is not equal to act.
 func equals(tb testing.TB, exp, act interface{}) {

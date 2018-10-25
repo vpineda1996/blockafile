@@ -2,18 +2,12 @@ package state
 
 import (
 	"../../crypto"
+	. "../../shared"
 	"../../shared/datastruct"
 	"errors"
+	"fmt"
 	"strconv"
 )
-
-type Filename string
-type FileData []byte
-type FileInfo struct {
-	Creator string
-	NumberOfRecords uint16
-	Data    FileData
-}
 
 type FilesystemState struct {
 	fs map[Filename]*FileInfo
@@ -23,9 +17,12 @@ func (b FilesystemState) GetAll() map[Filename]*FileInfo {
 	return b.fs
 }
 
-func (b *FilesystemState) update(newData map[Filename]*FileInfo) {
+func (b *FilesystemState) update(newData map[Filename]*FileInfo, deletedFiles map[string]bool) {
 	for k, v := range newData {
 		b.fs[k] = v
+	}
+	for k := range deletedFiles {
+		delete(b.fs, Filename(k))
 	}
 }
 
@@ -46,8 +43,9 @@ func NewFilesystemState(
 	lg.Printf("Creating new fs state with %v as top", nd.Id)
 	nds := transverseChain(nd)
 	fs, err := generateFilesystem(nds, confirmsPerFileCreate, confirmsPerFileAppend)
+
 	return FilesystemState{
-		fs:fs,
+		fs: fs,
 	}, err
 }
 
@@ -101,7 +99,6 @@ func generateFilesystem(
 	return res, nil
 }
 
-// TODO EC1 delete add the case over here to add the record
 func evaluateFSBlockOps(
 	fs map[Filename]*FileInfo,
 	bcs []*crypto.BlockOp,
@@ -111,30 +108,46 @@ func evaluateFSBlockOps(
 		switch tx.Type {
 		case crypto.CreateFile:
 			if createOpsConfirmed {
-				lg.Printf("Creating file %v", tx.Filename)
+				if len(tx.Filename) > MAX_FILENAME_LENGTH {
+					return errors.New("filename is to big for the given file")
+				}
+
 				if _, exists := fs[Filename(tx.Filename)]; exists {
 					return errors.New("file " + tx.Filename + " is duplicated, not a valid transaction")
 				}
-				fi := FileInfo {
-					Data:    make([]byte, 0, crypto.DataBlockSize),
+				lg.Printf("Creating file %v", tx.Filename)
+				fi := FileInfo{
+					Data:            make([]byte, 0, crypto.DataBlockSize),
 					NumberOfRecords: 0,
-					Creator: tx.Creator,
+					Creator:         tx.Creator,
 				}
 				fs[Filename(tx.Filename)] = &fi
 			}
 		case crypto.AppendFile:
 			if appendOpsConfirmed {
-				lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
 				if f, exists := fs[Filename(tx.Filename)]; exists {
+					if f.NumberOfRecords >= MAX_RECORD_COUNT {
+						return errors.New(fmt.Sprintf("file %s has reached maximum capacity", tx.Filename))
+					}
 					if tx.RecordNumber != f.NumberOfRecords {
 						return errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
 							" to file " + tx.Filename + " duplicated in chain, failing")
 					}
+					lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
 					f.NumberOfRecords += 1
 					f.Data = append(f.Data, FileData(tx.Data[:])...)
 				} else {
 					return errors.New("file " + tx.Filename + " doesn't exist but tried to append")
 				}
+			}
+		case crypto.DeleteFile:
+			lg.Printf("in delete")
+			if createOpsConfirmed {
+				if _, exists := fs[Filename(tx.Filename)]; !exists {
+					return errors.New("file " + tx.Filename + " doesn't exist and cannot delete")
+				}
+				lg.Printf("Deleting file %v", tx.Filename)
+				delete(fs, Filename(tx.Filename))
 			}
 		default:
 			return errors.New("vous les hommes êtes tous les mêmes, Macho mais cheap, Bande de mauviettes infidèles")

@@ -8,8 +8,6 @@ import (
 	"testing"
 )
 
-
-
 func TestBasicTree(t *testing.T) {
 
 	t.Run("add first root", func(t *testing.T) {
@@ -21,7 +19,7 @@ func TestBasicTree(t *testing.T) {
 
 		rts := mtr.GetRoots()
 		root := rts[0]
-		equals(t,0, len(root.Parents))
+		equals(t, 0, len(root.Parents))
 		assert(t, nil == root.Next(), "should not point to anything")
 	})
 
@@ -36,11 +34,11 @@ func TestBasicTree(t *testing.T) {
 		rts := mtr.GetRoots()
 
 		child := rts[0].Next()
-		equals(t,[]*Node{rts[0]}, child.Parents)
+		equals(t, []*Node{rts[0]}, child.Parents)
 		assert(t, nil == child.Next(), "should not point to anything")
 
 		root := rts[0]
-		equals(t,[]*Node{}, root.Parents)
+		equals(t, []*Node{}, root.Parents)
 		assert(t, child == root.Next(), "should be pointing to child")
 	})
 
@@ -48,30 +46,30 @@ func TestBasicTree(t *testing.T) {
 
 func TestComplexTreeInserts(t *testing.T) {
 	tests := []struct {
-		name string
-		height uint64
-		roots int
-		addOrder []int   // node where we insert first and the number of nodes we insert
-		longestChainId int // idx of longest chain
+		name           string
+		height         uint64
+		roots          int
+		addOrder       []int // node where we insert first and the number of nodes we insert
+		longestChainId int   // idx of longest chain
 	}{
 		{
-			name: "single long chain",
-			height: 99,
-			roots: 1,
-			addOrder: []int{0, 99},
+			name:           "single long chain",
+			height:         99,
+			roots:          1,
+			addOrder:       []int{0, 99},
 			longestChainId: 99,
 		},
 		{
-			name: "2-chain, 2 roots",
-			height: 99,
-			roots: 2,
-			addOrder: []int{0, 99, 5, 20},
+			name:           "2-chain, 2 roots",
+			height:         99,
+			roots:          2,
+			addOrder:       []int{0, 99, 5, 20},
 			longestChainId: 99,
 		},
 		{
-			name: "7 roots",
+			name:   "7 roots",
 			height: 105,
-			roots: 7,
+			roots:  7,
 			addOrder: []int{
 				0, 99,
 				5, 100,
@@ -90,10 +88,10 @@ func TestComplexTreeInserts(t *testing.T) {
 			mtr := NewMRootTree()
 
 			// create a root
-			e, _ :=  mtr.PrependElement(ee, nil)
+			e, _ := mtr.PrependElement(ee, nil)
 			nds = append(nds, e)
 
-			for i := 0; i < len(test.addOrder); i+= 2 {
+			for i := 0; i < len(test.addOrder); i += 2 {
 				// grab root and start adding n nodes
 				root := nds[test.addOrder[i]]
 				for j := 0; j < test.addOrder[i+1]; j++ {
@@ -107,7 +105,6 @@ func TestComplexTreeInserts(t *testing.T) {
 			assert(t, nds[test.longestChainId] == mtr.GetLongestChain(), "Longest chain should match")
 			equals(t, test.height, mtr.Height)
 
-
 			// check if all of the nodes are on the tree
 			height := mtr.GetLongestChain().Height
 			for root := mtr.GetLongestChain(); root != nil; root = root.Next() {
@@ -117,7 +114,7 @@ func TestComplexTreeInserts(t *testing.T) {
 				if height != root.Height {
 					t.Fail()
 				}
-				height -=1
+				height -= 1
 			}
 		})
 	}
