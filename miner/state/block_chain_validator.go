@@ -119,7 +119,7 @@ func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *
 		original = len(newOps)
 		nFile := make(map[Filename]*FileInfo)
 		var err error
-		newOps, _, err = bcv.validateNewFSBlockOps(ops, nFile)
+		newOps, _, err = bcv.validateNewFSBlockOps(newOps, nFile)
 		if err != nil {
 			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
 		}
@@ -133,7 +133,6 @@ func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *
 	return newOps
 }
 
-// TODO EC3 delete, do something here
 func (bcv *BlockChainValidator) validateNewFSState(b crypto.BlockElement) (map[Filename]*FileInfo, map[string]bool, error) {
 	res := make(map[Filename]*FileInfo)
 	bcs := b.Block.Records
@@ -168,7 +167,7 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 					continue
 				}
 			}
-
+			lg.Printf("Validator: creating file %v", tx.Filename)
 			fi := FileInfo{
 				Data:            make([]byte, 0, crypto.DataBlockSize),
 				NumberOfRecords: 0,
@@ -245,6 +244,7 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 					continue
 				}
 			}
+			lg.Printf("Validator: removing file %v", tx.Filename)
 			validOps = append(validOps, tx)
 			deletedFiles[tx.Filename] = true
 		default:
@@ -255,7 +255,6 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 	return validOps, deletedFiles, err
 }
 
-// TODO EC3 delete, do something here
 func (bcv *BlockChainValidator) validateNewAccountState(b crypto.BlockElement, parentBlock string) (map[Account]Balance, error) {
 	res := make(map[Account]Balance)
 	bcs := b.Block.Records
@@ -308,6 +307,8 @@ func (bcv *BlockChainValidator) validateNewAccountBlockOps(bcs []*crypto.BlockOp
 			}
 			nds = append(nds, &fakeNode)
 			refund(res, tx.Filename, bcv.cnf.AppendFee, bcv.cnf.CreateFee, nds, len(nds) - 1, idx)
+			validOps = append(validOps, tx)
+			continue
 		default:
 			return []*crypto.BlockOp{}, errors.New("not a valid file op")
 		}

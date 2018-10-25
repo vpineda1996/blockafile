@@ -18,14 +18,16 @@ const AliceAddress = "localhost:8081"
 const ClaudiaAddress = "localhost:8082"
 var GenesisBlockHash = [md5.Size]byte{1, 2, 3, 4, 5}
 
+var dificulty = 18
+
 var BobConfig = Config{
 	GenesisBlockHash:      GenesisBlockHash,
-	NumberOfZeros:         16,
+	NumberOfZeros:         dificulty,
 	MinerId:               "bob",
 	Address:               BobAddress,
 	AppendFee:             1,
 	ConfirmsPerFileAppend: 5,
-	ConfirmsPerFileCreate: 1,
+	ConfirmsPerFileCreate: 5,
 	CreateFee:             2,
 	NoOpReward:            1,
 	OpPerBlock:            3,
@@ -35,12 +37,12 @@ var BobConfig = Config{
 
 var ClaudiaConfig = Config{
 	GenesisBlockHash:      GenesisBlockHash,
-	NumberOfZeros:         16,
+	NumberOfZeros:         dificulty,
 	MinerId:               "claudia",
 	Address:               ClaudiaAddress,
 	AppendFee:             1,
 	ConfirmsPerFileAppend: 5,
-	ConfirmsPerFileCreate: 1,
+	ConfirmsPerFileCreate: 5,
 	CreateFee:             2,
 	NoOpReward:            1,
 	OpPerBlock:            3,
@@ -50,12 +52,12 @@ var ClaudiaConfig = Config{
 
 var AliceConfig = Config{
 	GenesisBlockHash:      GenesisBlockHash,
-	NumberOfZeros:         16,
+	NumberOfZeros:         dificulty,
 	MinerId:               "alice",
 	Address:               AliceAddress,
 	AppendFee:             1,
 	ConfirmsPerFileAppend: 5,
-	ConfirmsPerFileCreate: 1,
+	ConfirmsPerFileCreate: 5,
 	CreateFee:             2,
 	NoOpReward:            1,
 	OpPerBlock:            3,

@@ -42,6 +42,7 @@ func NewFilesystemState(
 	lg.Printf("Creating new fs state with %v as top", nd.Id)
 	nds := transverseChain(nd)
 	fs, err := generateFilesystem(nds, confirmsPerFileCreate, confirmsPerFileAppend)
+
 	return FilesystemState{
 		fs: fs,
 	}, err
@@ -136,6 +137,7 @@ func evaluateFSBlockOps(
 				}
 			}
 		case crypto.DeleteFile:
+			lg.Printf("in delete")
 			if createOpsConfirmed {
 				if _, exists := fs[Filename(tx.Filename)]; !exists {
 					return errors.New("file " + tx.Filename + " doesn't exist and cannot delete")
