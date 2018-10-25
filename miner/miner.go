@@ -1,6 +1,7 @@
 package main
 
 import (
+	"../crypto"
 	"../fdlib"
 	. "../shared"
 	"./state"
@@ -105,10 +106,38 @@ type MinerInstance struct {
 
 // errorType can be one of: FILE_EXISTS, BAD_FILENAME, NO_ERROR
 func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureType) {
-	// TODO
 	lg.Println("Handling create file request")
-	// return shared.FILE_EXISTS
-	return -1
+
+	fs, err := miner.minerState.GetFilesystemState(
+		int(miner.minerConf.ConfirmsPerFileCreate),
+		int(miner.minerConf.ConfirmsPerFileAppend))
+	if err != nil {
+		// todo ksenia what to do about this case?
+		panic(err)
+	}
+
+	// check if file already exists
+	_, ok := fs.GetFile(state.Filename(fname))
+	if ok {
+		return FILE_EXISTS
+	}
+
+	// check if bad file name
+	if len([]byte(fname)) > MAX_FILENAME_LENGTH {
+		return BAD_FILENAME
+	}
+
+	// proceed to add job
+	job := new(crypto.BlockOp)
+	job.Type = crypto.CreateFile
+	job.Creator = miner.minerConf.MinerID
+	job.Filename = fname
+	minerListener := miner.minerState.(state.MinerStateImpl)
+	minerListener.AddJob(job)
+
+	// wait for job to be complete
+	// TODO ksenia
+	return NO_ERROR
 }
 
 func (miner MinerInstance) ListFilesHandler() (fnames []string) {
@@ -118,6 +147,7 @@ func (miner MinerInstance) ListFilesHandler() (fnames []string) {
 		int(miner.minerConf.ConfirmsPerFileCreate),
 		int(miner.minerConf.ConfirmsPerFileAppend))
 	if err != nil {
+		// todo ksenia silently fail?
 		return []string{}
 	}
 

@@ -2,5 +2,6 @@ package shared
 
 const (
 	CLIENT_RETRY_COUNT = 10
+	MAX_FILENAME_LENGTH = 64
 	NUM_COINS_PER_FILE_APPEND = 1
 )
