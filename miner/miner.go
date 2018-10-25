@@ -205,10 +205,40 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 
 // errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, NO_ERROR
 func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType) {
-	// TODO
 	lg.Println("Handling append record request")
-	// return 0, shared.MAX_LEN_REACHED
-	return 0, -1
+
+	fs, err := miner.minerState.GetFilesystemState(
+		int(miner.minerConf.ConfirmsPerFileCreate),
+		int(miner.minerConf.ConfirmsPerFileAppend))
+	if err != nil {
+		// todo ksenia what to do about this case?
+		panic(err)
+	}
+
+	// check if file already exists
+	file, ok := fs.GetFile(state.Filename(fname))
+	if !ok {
+		return 0, FILE_DOES_NOT_EXIST
+	}
+
+	// check if file is at max length
+	if file.NumberOfRecords >= MAX_RECORD_COUNT {
+		return 0, MAX_LEN_REACHED
+	}
+
+	// proceed to add job
+	job := new(crypto.BlockOp)
+	job.Type = crypto.AppendFile
+	job.Creator = miner.minerConf.MinerID
+	job.Filename = fname
+	job.RecordNumber = file.NumberOfRecords
+	copy(job.Data[:], record[:])
+	minerListener := miner.minerState.(state.MinerStateImpl)
+	minerListener.AddJob(job)
+
+	// wait for job to be complete
+	// TODO ksenia
+	return 0, NO_ERROR
 }
 
 /////////// Helpers ///////////////////////////////////////////////////////
