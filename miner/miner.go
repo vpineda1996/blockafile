@@ -123,7 +123,7 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 		job.Filename = fname
 		block := crypto.Block{
 			Type:      crypto.RegularBlock,
-			PrevBlock: [16]byte{} /*todo ksenia*/,
+			PrevBlock: [16]byte{} /*todo ksenia do I need to set this?*/,
 			Records:   []*crypto.BlockOp{job},
 			MinerId:   miner.minerConf.MinerID}
 
@@ -156,8 +156,23 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 
 		// add job wait for it to complete
 		miner.minerState.AddJob(*job)
-		// todo ksenia
-		return NO_ERROR
+		ccl := state.CreateConfirmationListener {
+			Creator: miner.minerConf.MinerID,
+			Filename: fname,
+			MinerState: miner.minerState,
+			ConfirmsPerFileAppend: int(miner.minerConf.ConfirmsPerFileAppend),
+			ConfirmsPerFileCreate: int(miner.minerConf.ConfirmsPerFileCreate),
+			NotifyChannel: make(chan int, 100),
+		}
+		miner.minerState.AddTreeListener(ccl)
+		for {
+			select {
+			case <- ccl.NotifyChannel:
+				return NO_ERROR
+			default:
+				// do nothing
+			}
+		}
 	}
 }
 
@@ -228,7 +243,7 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 		copy(job.Data[:], record[:])
 		block := crypto.Block{
 			Type:      crypto.RegularBlock,
-			PrevBlock: [16]byte{} /*todo ksenia*/,
+			PrevBlock: [16]byte{} /*todo ksenia do I need to set this?*/,
 			Records:   []*crypto.BlockOp{job},
 			MinerId:   miner.minerConf.MinerID}
 
@@ -265,9 +280,25 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 
 		// add job wait for it to complete
 		miner.minerState.AddJob(*job)
-		// todo ksenia
-
-		return 0, NO_ERROR
+		acl := state.AppendConfirmationListener {
+			Creator: miner.minerConf.MinerID,
+			Filename: fname,
+			RecordNumber: job.RecordNumber,
+			Data: record,
+			MinerState: miner.minerState,
+			ConfirmsPerFileAppend: int(miner.minerConf.ConfirmsPerFileAppend),
+			ConfirmsPerFileCreate: int(miner.minerConf.ConfirmsPerFileCreate),
+			NotifyChannel: make(chan int, 100),
+		}
+		miner.minerState.AddTreeListener(acl)
+		for {
+			select {
+			case <- acl.NotifyChannel:
+				return 0, NO_ERROR
+			default:
+				// do nothing
+			}
+		}
 	}
 }
 

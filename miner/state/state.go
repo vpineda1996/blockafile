@@ -5,6 +5,7 @@ import (
 	"../../shared"
 	"../api"
 	. "../block_calculators"
+	"container/list"
 	"crypto/md5"
 	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
@@ -21,6 +22,7 @@ type MinerState struct {
 	bc      **BlockCalculator
 	minerId string
 	lAddr   string
+	listeners *list.List
 }
 
 type Config struct {
@@ -113,6 +115,9 @@ func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
 
 func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 	// todo notify to any listener
+	for e := s.listeners.Front(); e != nil; e = e.Next() {
+		go e.Value.(TreeListener).TreeEventHandler()
+	}
 	s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
 }
 
@@ -195,6 +200,10 @@ func (s MinerState) AddHost(h string) {
 	}
 }
 
+func (s MinerState) AddTreeListener(listener TreeListener) {
+	s.listeners.PushBack(listener)
+}
+
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	logger := govec.InitGoVector(config.MinerId, shared.LOGFILE + "_" + config.MinerId, shared.GoVecOpts)
 	cls := make(map[string]*api.MinerClient, len(connectedMiningNodes))
@@ -215,6 +224,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		bc:      &blockCalcPtr,
 		logger:  logger,
 		lAddr:   config.Address,
+		listeners: list.New(),
 	}
 	treePtr = NewTreeManager(config, ms, ms)
 
