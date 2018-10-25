@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -190,12 +191,198 @@ func TestSimpleTreeManager(t *testing.T) {
 		equals(t, "1", fs["a"].Creator)
 	})
 
+	t.Run("simple tree with just genesis, a record and delete", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				1, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := NewTreeManager(Config{
+			AppendFee:     shared.NUM_COINS_PER_FILE_APPEND,
+			CreateFee:     1,
+			OpReward:      1,
+			NoOpReward:    1,
+			NumberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, fkNodeRetriv)
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err != nil {
+			t.Fail()
+		}
+
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+
+		bkState, err := NewAccountsState(3, createFee, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 2
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("tree with just genesis, 2 record and 2 delete", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				1, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0,
+				2, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				3, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := NewTreeManager(Config{
+			AppendFee:     shared.NUM_COINS_PER_FILE_APPEND,
+			CreateFee:     1,
+			OpReward:      1,
+			NoOpReward:    1,
+			NumberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, fkNodeRetriv)
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err != nil {
+			t.Fail()
+		}
+
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+
+		bkState, err := NewAccountsState(3, createFee, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 4
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("append-delete-create-delete", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				1, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0,
+				2, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				3, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0,
+				4, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0,},
+		}
+		tree := NewTreeManager(Config{
+			AppendFee:     shared.NUM_COINS_PER_FILE_APPEND,
+			CreateFee:     1,
+			OpReward:      1,
+			NoOpReward:    1,
+			NumberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, fkNodeRetriv)
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err != nil {
+			t.Fail()
+		}
+
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 0, len(fs))
+
+		bkState, err := NewAccountsState(3, createFee, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 5
+		equals(t, mp, bkState.GetAll())
+	})
+
 	t.Run("fails if account doesn't have money", func(t *testing.T) {
 		treeDef := treeBuilderTest{
 			height: 1,
 			roots:  1,
 			addOrder: []int{
 				0, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 0, int(crypto.CreateFile), 0},
+		}
+		tree := NewTreeManager(Config{
+			AppendFee:     shared.NUM_COINS_PER_FILE_APPEND,
+			CreateFee:     1,
+			OpReward:      1,
+			NoOpReward:    1,
+			NumberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, fkNodeRetriv)
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err == nil {
+			t.Fail()
+		}
+	})
+
+	t.Run("fails to delete if the file doesn't exist", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := NewTreeManager(Config{
+			AppendFee:     shared.NUM_COINS_PER_FILE_APPEND,
+			CreateFee:     1,
+			OpReward:      1,
+			NoOpReward:    1,
+			NumberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, fkNodeRetriv)
+		err := buildTreeWithManager(treeDef, tree)
+
+
+		if err == nil {
+			t.Fail()
+		}
+	})
+
+	t.Run("fails on double delete", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 0, int(crypto.CreateFile), 0,
+				1, 2, 1, int(crypto.RegularBlock), 1, 2, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := NewTreeManager(Config{
+			AppendFee:     shared.NUM_COINS_PER_FILE_APPEND,
+			CreateFee:     1,
+			OpReward:      1,
+			NoOpReward:    1,
+			NumberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, fkNodeRetriv)
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err == nil {
+			t.Fail()
+		}
+	})
+
+	t.Run("fails on append to deleted file", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 0, int(crypto.CreateFile), 0,
+				1, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 0, int(crypto.DeleteFile), 0,
+				2, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 0, int(crypto.AppendFile), 0},
 		}
 		tree := NewTreeManager(Config{
 			AppendFee:     shared.NUM_COINS_PER_FILE_APPEND,
@@ -432,6 +619,69 @@ func TestValidTnxTreeManager(t *testing.T) {
 
 		equals(t, datum[0][:], []byte(fs["c"].Data)[:crypto.DataBlockSize])
 		equals(t, datum[1][:], []byte(fs["c"].Data)[crypto.DataBlockSize:])
+	})
+
+	t.Run("delete on complex case", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				// true chain
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 5, 2, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				106, 1, 1, int(crypto.RegularBlock), 1, 2, 0, 1, int(crypto.CreateFile), 0,
+				107, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.CreateFile), 0,
+				108, 2, 2, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				110, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile), 0,
+				111, 9, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				120, 1, 2, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.AppendFile), 1,
+				121, 1, 1, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.DeleteFile), 0,
+				// create the file again
+				122, 1, 2, int(crypto.RegularBlock), 1, 2, 0, 2, int(crypto.CreateFile), 0,
+				123, 1, 2, int(crypto.RegularBlock), 1, 1, 0, 2, int(crypto.AppendFile), 0,
+				124, 1, 1, int(crypto.RegularBlock), 1, 2, 1, 2, int(crypto.DeleteFile), 0,
+				// delete and create
+				125, 1, 2, int(crypto.RegularBlock), 1, 2, 0, 2, int(crypto.CreateFile), 0,},
+		}
+
+		tree := NewTreeManager(Config{
+			AppendFee:     shared.NUM_COINS_PER_FILE_APPEND,
+			CreateFee:     1,
+			OpReward:      1,
+			NoOpReward:    1,
+			NumberOfZeros: numberOfZeros,
+		}, fkNodeRetriv, fkNodeRetriv)
+		err := buildTreeWithManager(treeDef, tree)
+
+		if err != nil {
+			t.Fail()
+		}
+
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err != nil {
+			panic(err)
+		}
+		fs := fsState.GetAll()
+		equals(t, 3, len(fs))
+
+		equals(t, "1", fs["a"].Creator)
+
+		equals(t, "2", fs["b"].Creator)
+
+		equals(t, "2", fs["c"].Creator)
+
+		equals(t, uint32(0), fs["c"].NumberOfRecords)
+
+		bkState, err := NewAccountsState(1, createFee, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 112 // file a created by 1
+		mp[Account(strconv.Itoa(2))] = 11  // file b created by 2
+		equals(t, mp, bkState.GetAll())
 	})
 
 	t.Run("fails to create a tree with conflicting appends", func(t *testing.T) {
@@ -1005,17 +1255,21 @@ func TestBlockRetrieval(t *testing.T) {
 		equals(t, 0, len(fs))
 	})
 }
-
+var lock = sync.Mutex{}
 type obl struct {
 	newb  *int
 	newll *int
 }
 
 func (o obl) OnNewBlockInTree(b *crypto.Block) {
+	lock.Lock()
+	defer lock.Unlock()
 	*o.newb += 1
 }
 
 func (o obl) OnNewBlockInLongestChain(b *crypto.Block) {
+	lock.Lock()
+	defer lock.Unlock()
 	*o.newll += 1
 }
 
@@ -1090,6 +1344,7 @@ func TestOnBlockListeners(t *testing.T) {
 		if err != nil {
 			t.Fail()
 		}
+		time.Sleep(time.Millisecond * 100)
 		equals(t, 202, *ob.newb)
 		equals(t, 202-12, *ob.newll)
 	})

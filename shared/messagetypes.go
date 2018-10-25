@@ -22,6 +22,8 @@ const (
 	NO_ERROR = -1
 )
 
+const MaxFileName = 64
+
 type RFSClientRequest struct {
 	RequestType  RequestType
 	FileName     string

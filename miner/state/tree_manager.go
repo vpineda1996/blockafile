@@ -26,7 +26,6 @@ type TreeManager struct {
 	findBlockQueue  *datastruct.Queue
 	findBlockNotify chan bool
 	shutdownThreads bool
-	mtx             *sync.Mutex
 }
 
 func (t *TreeManager) GetBlock(id string) (*crypto.Block, bool) {
@@ -107,6 +106,10 @@ func (t *TreeManager) GetHighestRoot() *crypto.Block {
 	return &cpy
 }
 
+func (t *TreeManager) InLongestChain(id string) int {
+	return t.mTree.InLongestChain(id)
+}
+
 func (t *TreeManager) ValidateBlock(b *crypto.Block) bool {
 	return t.mTree.ValidateBlock(b)
 }
@@ -132,14 +135,22 @@ func (t *TreeManager) StartThreads() {
 func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 	// the block is a genesis block no need to check children add it directly
 	if b.Block.Type == crypto.GenesisBlock {
-		t.AddBlock(b)
+		err := t.AddBlock(b)
+		if err != nil {
+			removeNodesStartingFrom(b, t.findBlockQueue)
+			return false
+		}
 		return true
 	}
 
 	// parent block is in the tree, add it
 	if _, ok := t.mTree.Find(b.ParentId()); ok {
 		if _, ok := t.mTree.Find(b.Id()); !ok {
-			t.AddBlock(b)
+			err := t.AddBlock(b)
+			if err != nil {
+				removeNodesStartingFrom(b, t.findBlockQueue)
+				return false
+			}
 		}
 		return true
 	}
@@ -152,7 +163,11 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 
 	if t.findBlockQueue.IsInQueue(eqParIdFn) {
 		lg.Printf("Found parent %v, in queue. Queuing block %v", b.ParentId(), b.Id())
-		t.AddBlock(b)
+		err := t.AddBlock(b)
+		if err != nil {
+			removeNodesStartingFrom(b, t.findBlockQueue)
+			return false
+		}
 		return true
 	}
 
@@ -163,16 +178,33 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 		removeNodesStartingFrom(b, t.findBlockQueue)
 		return false
 	} else {
-		// we found the parent block!, add the parent to the queue and then the child
-		err := t.AddBlock(crypto.BlockElement{
-			Block: block,
-		})
-		if err == nil {
-			t.AddBlock(b)
-			return true
+		// we found the parent block!, add the parent if the parent of the parent is there
+		if _, ok := t.mTree.Find(b.ParentId()); ok {
+			lg.Printf("Found parent that is viable adding")
+			err := t.AddBlock(crypto.BlockElement{
+				Block: block,
+			})
+			if err == nil {
+				err := t.AddBlock(b)
+				if err != nil {
+					removeNodesStartingFrom(b, t.findBlockQueue)
+					return false
+				}
+				return true
+			} else {
+				// remove all of the nodes that had b as parent
+				removeNodesStartingFrom(b, t.findBlockQueue)
+				return false
+			}
 		} else {
-			// remove all of the nodes that had b as parent
-			return removeNodesStartingFrom(b, t.findBlockQueue)
+			success := blockAdderHelper(t, crypto.BlockElement{
+				Block: block,
+			})
+			if success {
+				lg.Printf("Adding missing block %v", b.Id())
+				t.AddBlock(b)
+			}
+			return success
 		}
 	}
 }
@@ -213,18 +245,18 @@ func UpdateRootsThread(t *TreeManager) {
 				Block: block,
 			})
 		}
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second)
 	}
 }
 
 func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *TreeManager {
 	tree := datastruct.NewMRootTree()
 	tm := &TreeManager{
-		mtx: new(sync.Mutex),
 		br:  br,
 		mTree: BlockChainTree{
 			mTree:     tree,
 			tcl:       tcl,
+			mtx: new(sync.Mutex),
 			validator: NewBlockChainValidator(cnf, tree),
 		},
 		findBlockQueue:  &datastruct.Queue{},
@@ -238,32 +270,50 @@ type BlockChainTree struct {
 	mTree     *datastruct.MRootTree
 	validator *BlockChainValidator
 	tcl       TreeChangeListener
+	mtx *sync.Mutex
 }
 
 func (b BlockChainTree) Find(id string) (*datastruct.Node, bool) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	return b.mTree.Find(id)
 }
 
 // adds block to the blockchain give that it passes all validations
 func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	root, err := b.validator.Validate(block)
 	if err != nil {
 		lg.Printf("Rejected block %v, due to %v\n", block.Id(), err)
 		return nil, err
 	}
-	lg.Printf("Added block %v\n", block.Id())
 
 	nd, err := b.mTree.PrependElement(block, root)
+	lg.Printf("Added block %v\n", block.Id())
 	if err != nil {
 		return nil, err
 	}
 
-	b.tcl.OnNewBlockInTree(block.Block)
+	go b.tcl.OnNewBlockInTree(block.Block)
 	if b.GetLongestChain().Id == block.Id() {
-		b.tcl.OnNewBlockInLongestChain(block.Block)
+		go b.tcl.OnNewBlockInLongestChain(block.Block)
 	}
 
 	return nd, err
+}
+
+func (b BlockChainTree) InLongestChain(id string) int {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	depth := 0
+	for r := b.GetLongestChain(); r != nil; r = r.Next() {
+		if r.Id == id {
+			return depth
+		}
+		depth += 1
+	}
+	return -1
 }
 
 func (b BlockChainTree) GetLongestChain() *datastruct.Node {
@@ -271,6 +321,8 @@ func (b BlockChainTree) GetLongestChain() *datastruct.Node {
 }
 
 func (b BlockChainTree) ValidateBlock(blk *crypto.Block) bool {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	_, err := b.validator.Validate(crypto.BlockElement{
 		Block: blk,
 	})
@@ -278,9 +330,13 @@ func (b BlockChainTree) ValidateBlock(blk *crypto.Block) bool {
 }
 
 func (b BlockChainTree) GetRoots() []*datastruct.Node {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	return b.mTree.GetRoots()
 }
 
 func (b BlockChainTree) ValidateJobSet(ops []*crypto.BlockOp) []*crypto.BlockOp {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	return b.validator.ValidateJobSet(ops, b.mTree.GetLongestChain())
 }

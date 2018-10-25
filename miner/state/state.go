@@ -17,9 +17,10 @@ type MinerState struct {
 	// dont ask of the double ptr, its cancer but there is no other way
 	logger  *govec.GoLog
 	tm      **TreeManager
-	clients *[]*api.MinerClient
+	clients *map[string]*api.MinerClient
 	bc      **BlockCalculator
 	minerId string
+	lAddr string
 }
 
 type Config struct {
@@ -139,8 +140,8 @@ func (s MinerState) broadcastBlock(b *crypto.Block) {
 }
 
 func (s MinerState) AddJob(b crypto.BlockOp) {
-	lg.Printf("Added new job: %v", b.Filename)
 	if (*s.bc).JobExists(&b) < 0 {
+		lg.Printf("Added new job: %v", b.Filename)
 		s.logger.LogLocalEvent(fmt.Sprintf(" Enqueuing job for file %v and record %v for miner to work on", b.Filename, b.RecordNumber), INFO)
 		(*s.bc).AddJob(&b)
 		s.broadcastJob(&b)
@@ -170,13 +171,38 @@ func (s MinerState) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
 	return (*s.tm).ValidateJobSet(bOps)
 }
 
-func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
-	logger := govec.InitGoVector(config.MinerId, shared.LOGFILE, shared.GoVecOpts)
-	cls := make([]*api.MinerClient, 0, len(connectedMiningNodes))
-	for _, c := range connectedMiningNodes {
-		conn, err := api.NewMinerClient(c, logger)
+func (s MinerState) InLongestChain(id string) int {
+	return (*s.tm).InLongestChain(id)
+}
+
+func (s MinerState) SleepMiner() {
+	(*s.bc).ShutdownThreads()
+}
+
+func (s MinerState) ActivateMiner(){
+	(*s.bc).StartThreads()
+}
+
+func (s MinerState) AddHost(h string) {
+	if _, ok := (*s.clients)[h]; !ok {
+		conn, err := api.NewMinerClient(h, s.lAddr, s.logger)
 		if err == nil {
-			cls = append(cls, &conn)
+			(*s.clients)[h] = &conn
+		} else {
+			lg.Printf("Couldn't connect to %v due to %v", h, err)
+		}
+	}
+}
+
+func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
+	logger := govec.InitGoVector(config.MinerId, shared.LOGFILE + "_" + config.MinerId, shared.GoVecOpts)
+	cls := make(map[string]*api.MinerClient, len(connectedMiningNodes))
+	for _, c := range connectedMiningNodes {
+		conn, err := api.NewMinerClient(c, config.Address, logger)
+		if err == nil {
+			cls[c] = &conn
+		} else {
+			lg.Printf("Couldn't connect to %v due to %v", c, err)
 		}
 	}
 	var treePtr *TreeManager
@@ -187,9 +213,20 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		tm:      &treePtr,
 		bc:      &blockCalcPtr,
 		logger:  logger,
+		lAddr: config.Address,
 	}
 	treePtr = NewTreeManager(config, ms, ms)
-	blockCalcPtr = NewBlockCalculator(ms, config.NumberOfZeros, config.OpPerBlock, time.Duration(config.GenOpBlockTimeout))
+
+	calcThresh := config.ConfirmsPerFileCreate
+	if config.ConfirmsPerFileAppend > calcThresh {
+		calcThresh = config.ConfirmsPerFileAppend
+	}
+
+	blockCalcPtr = NewBlockCalculator(ms,
+		config.NumberOfZeros,
+		config.OpPerBlock,
+		time.Duration(config.GenOpBlockTimeout),
+		calcThresh)
 
 	// add genesis block
 	err := (*ms.tm).AddBlock(crypto.BlockElement{

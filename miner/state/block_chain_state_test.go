@@ -139,6 +139,71 @@ func TestSimpleBlockChainTree(t *testing.T) {
 		mp[Account(strconv.Itoa(2))] = 1
 		equals(t, mp, bkState.GetAll())
 	})
+
+	t.Run("refunds accounts on delete for create", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := buildFSTree(treeDef)
+		bkState, err := NewAccountsState(3, createFee, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 102
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("refunds accounts on delete for create & append", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0,
+				102, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := buildFSTree(treeDef)
+		bkState, err := NewAccountsState(3, createFee, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 103
+		equals(t, mp, bkState.GetAll())
+	})
+
+	t.Run("doesn't double refund", func(t *testing.T) {
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: []int{
+				0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0,
+				100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				101, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0,
+				102, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0,
+				103, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0,
+				104, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 0,
+				105, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.DeleteFile), 0},
+		}
+		tree := buildFSTree(treeDef)
+		bkState, err := NewAccountsState(3, createFee, opReward, noOpReward, tree.GetLongestChain())
+		if err != nil {
+			t.Fatal(err)
+			t.Fail()
+		}
+		mp := make(map[Account]Balance)
+		mp[Account(strconv.Itoa(1))] = 106
+		equals(t, mp, bkState.GetAll())
+	})
 }
 
 func TestComplexBlockChainTree(t *testing.T) {

@@ -20,6 +20,7 @@ type BlockCalculatorListener interface {
 	GetHighestRoot() *crypto.Block
 	GetMinerId() string
 	ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp
+	InLongestChain(id string) int
 }
 
 type BlockCalculator struct {
@@ -30,6 +31,7 @@ type BlockCalculator struct {
 	mtx                       *sync.Mutex
 	opsPerBlock               int
 	numberOfZeros             int
+	maxConfirm				  int
 	timePerBlockTimeoutMillis time.Duration
 }
 
@@ -101,6 +103,20 @@ func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *b
 	return &bk
 }
 
+func addedToLongestChainValidation(bc *BlockCalculator, block *crypto.Block) bool {
+	bc.noopSuspended = false
+	defer func() {bc.noopSuspended = true}()
+	for {
+		depth := bc.listener.InLongestChain(block.Id())
+		if depth < 0 {
+			return false
+		} else if depth > bc.maxConfirm {
+			return true
+		}
+		time.Sleep(time.Millisecond * 50)
+	}
+}
+
 func JobsCalculator(bc *BlockCalculator) {
 	for !bc.shutdownThreads {
 		blockOps := getBlockOps(bc)
@@ -110,10 +126,19 @@ func JobsCalculator(bc *BlockCalculator) {
 			for {
 				newBlock := generateNewBlock(bc, blockOps, new(bool), crypto.RegularBlock)
 				lg.Printf("Generated block with %v ops", len(blockOps))
+
 				// once we found a block send it and remove those jobs form the queue
 				if bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
 					lg.Printf("Jobs calculator found a block")
 					bc.listener.AddBlock(newBlock)
+
+					if !addedToLongestChainValidation(bc, newBlock) {
+						// re-enqueue jobs if we didn't add and start from scratch
+						lg.Printf("Block wasn't added to blockchain, putting it on the backburner")
+						for _, r := range newBlock.Records {
+							bc.AddJob(r)
+						}
+					}
 					break
 				}
 			}
@@ -132,7 +157,9 @@ func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 	bOps := make([]*crypto.BlockOp, 0, bc.opsPerBlock)
 	for i := 0; i < bc.opsPerBlock && bc.jobSet.Len() > 0; i++ {
 		if i == 0 {
+			bc.mtx.Unlock()
 			time.Sleep(time.Millisecond * bc.timePerBlockTimeoutMillis)
+			bc.mtx.Lock()
 		}
 		blk := heap.Pop(bc.jobSet).(*datastruct.Item).Value.(*crypto.BlockOp)
 		bOps = append(bOps, blk)
@@ -141,7 +168,10 @@ func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 	return bc.listener.ValidateJobSet(bOps)
 }
 
-func NewBlockCalculator(state BlockCalculatorListener, numberOfZeros int, opsPerBlock int, blockTimeout time.Duration) *BlockCalculator {
+func NewBlockCalculator(state BlockCalculatorListener,
+	numberOfZeros int,
+	opsPerBlock int,
+	blockTimeout time.Duration, maxConfirm int) *BlockCalculator {
 	bc := &BlockCalculator{
 		jobSet:                    new(datastruct.PriorityQueue),
 		listener:                  state,
@@ -149,6 +179,7 @@ func NewBlockCalculator(state BlockCalculatorListener, numberOfZeros int, opsPer
 		numberOfZeros:             numberOfZeros,
 		opsPerBlock:               opsPerBlock,
 		timePerBlockTimeoutMillis: blockTimeout,
+		maxConfirm: maxConfirm,
 	}
 	heap.Init(bc.jobSet)
 	return bc

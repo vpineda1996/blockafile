@@ -4,9 +4,11 @@ import (
 	. "../../crypto"
 	"crypto/md5"
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -18,7 +20,15 @@ type blkGenList struct {
 	getHighestRoot  *int
 	getMinerId      *int
 	validate        *int
+	longestNum      *int
 	blockOps        []*BlockOp
+}
+
+func (bg blkGenList) InLongestChain(id string) int {
+	if bg.longestNum != nil {
+		return *bg.longestNum
+	}
+	return 100
 }
 
 func (bg blkGenList) AddBlock(b *Block) {
@@ -82,7 +92,7 @@ func TestBlockGeneration(t *testing.T) {
 			getHighestRoot: new(int),
 			validate:       new(int),
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		bc.StartThreads()
 		time.Sleep(time.Second)
 		bc.ShutdownThreads()
@@ -100,7 +110,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		bc.StartThreads()
 		bc.AddJob(validBlockOps[0])
 		time.Sleep(time.Second)
@@ -118,7 +128,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		for i := 0; i < 21; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -138,7 +148,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -159,7 +169,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100)
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -171,6 +181,66 @@ func TestBlockGeneration(t *testing.T) {
 		bc.ShutdownThreads()
 
 		equals(t, 0, *listener.addBlockRegular)
+	})
+
+	t.Run("waits for ops and packages them according to timeout", func(t *testing.T) {
+		listener := blkGenList{
+			addBlockNoop:    new(int),
+			addBlockRegular: new(int),
+			getMinerId:      new(int),
+			getHighestRoot:  new(int),
+			validate:        new(int),
+			blockOps:        validBlockOps,
+		}
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 500, 1)
+
+		for i := 0; i < 2; i++ {
+			bop := validBlockOps[0]
+			bop.Creator = strconv.Itoa(rand.Int())
+			bc.AddJob(bop)
+		}
+		bc.StartThreads()
+		time.Sleep(time.Millisecond * 100)
+		for i := 0; i < 18; i++ {
+			bop := validBlockOps[0]
+			bop.Creator = strconv.Itoa(rand.Int())
+			bc.AddJob(bop)
+		}
+		time.Sleep(time.Second * 3)
+		bc.ShutdownThreads()
+
+		equals(t, 2, *listener.addBlockRegular)
+	})
+
+	t.Run("keeps trying the same job if it doesn't belong to the longest chain", func(t *testing.T) {
+		lgInt := -1 // not in longest chain
+		listener := blkGenList{
+			addBlockNoop:    new(int),
+			addBlockRegular: new(int),
+			getMinerId:      new(int),
+			getHighestRoot:  new(int),
+			validate:        new(int),
+			longestNum:      &lgInt,
+			blockOps:        validBlockOps,
+		}
+		bc := NewBlockCalculator(listener, numberOfZeros, 10, 500, 10)
+
+		for i := 0; i < 2; i++ {
+			bop := validBlockOps[0]
+			bop.Creator = strconv.Itoa(rand.Int())
+			bc.AddJob(bop)
+		}
+		bc.StartThreads()
+		time.Sleep(time.Second * 3)
+		assert(t, *listener.addBlockRegular > 2, "if this is false then we are not trying to " +
+			"add blocks that werent added to longest chain")
+		lgInt = 200
+		currentC := *listener.addBlockRegular
+		// now there is enough depth wait for mining to finish
+		time.Sleep(time.Second)
+		// only one more call to actually add the block
+		equals(t, currentC + 1, *listener.addBlockRegular)
+		bc.ShutdownThreads()
 	})
 }
 

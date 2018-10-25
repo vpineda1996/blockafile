@@ -13,6 +13,9 @@ import (
 type fakeState struct {
 }
 
+func (fakeState) AddHost(h string) {
+}
+
 func (fakeState) GetBlock(id string) (*crypto.Block, bool) {
 	return &bk, true
 }
@@ -74,7 +77,7 @@ func init() {
 }
 
 func TestGetNodeTest(t *testing.T) {
-	c, err := NewMinerClient("localhost"+host, loggerV)
+	c, err := NewMinerClient("localhost"+host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -89,7 +92,7 @@ func TestGetNodeTest(t *testing.T) {
 }
 
 func TestAddNodeTest(t *testing.T) {
-	c, err := NewMinerClient("localhost"+host, loggerV)
+	c, err := NewMinerClient("localhost"+host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -99,7 +102,7 @@ func TestAddNodeTest(t *testing.T) {
 }
 
 func TestGetRoots(t *testing.T) {
-	c, err := NewMinerClient("localhost"+host, loggerV)
+	c, err := NewMinerClient("localhost"+host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -110,7 +113,7 @@ func TestGetRoots(t *testing.T) {
 }
 
 func TestSendJob(t *testing.T) {
-	c, err := NewMinerClient("localhost"+host, loggerV)
+	c, err := NewMinerClient("localhost"+host, host, loggerV)
 
 	if err != nil {
 		t.Fail()

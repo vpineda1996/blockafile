@@ -17,7 +17,7 @@ var config = Config{
 	GenesisBlockHash:      [md5.Size]byte{1, 2, 3, 4, 5},
 	NumberOfZeros:         16,
 	MinerId:               "1",
-	Address:               ":8080",
+	Address:               "localhost:8085",
 	AppendFee:             1,
 	ConfirmsPerFileAppend: 3,
 	ConfirmsPerFileCreate: 5,
@@ -56,7 +56,7 @@ func TestMinerState(t *testing.T) {
 	}
 	s.AddJob(job)
 	// wait for job to be processed
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	fs, err := s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
 	equals(t, shared.FileData{}, fs.GetAll()["myFile"].Data)
@@ -82,7 +82,7 @@ func TestMinerState(t *testing.T) {
 	s.AddJob(job)
 
 	// wait for job to be processed
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
 	equals(t, uint32(2), fs.GetAll()["myFile"].NumberOfRecords)
@@ -99,7 +99,7 @@ func TestMinerState(t *testing.T) {
 	s.AddJob(job)
 
 	// wait for job to be processed
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
 	equals(t, uint32(2), fs.GetAll()["myFile"].NumberOfRecords)
@@ -116,7 +116,7 @@ func TestMinerState(t *testing.T) {
 	s.AddJob(job)
 
 	// wait for job to be processed
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
 	equals(t, uint32(2), fs.GetAll()["myFile"].NumberOfRecords)
@@ -143,7 +143,7 @@ func TestMinerState(t *testing.T) {
 	s.AddJob(job)
 
 	// wait for job to be processed
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
 	equals(t, uint32(1), fs.GetAll()["myFile2"].NumberOfRecords)
@@ -197,7 +197,7 @@ func TestMinerState(t *testing.T) {
 	s.AddJob(job)
 
 	// wait for job to be processed
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
 	equals(t, uint32(3), fs.GetAll()["myFile2"].NumberOfRecords)
@@ -241,20 +241,57 @@ func TestMinerState(t *testing.T) {
 	}
 	s.AddJob(job)
 
+	// wait for job to be processed
+	time.Sleep(time.Second * 5)
+	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
+	ok(t, err)
+	_, v := fs.GetAll()["myFile3"]
+	equals(t, false, v)
+
+	// -----------------------------------------------
+	// delete a file
 	job = crypto.BlockOp{
-		Type:         crypto.CreateFile,
-		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Type:         crypto.DeleteFile,
+		Data:         [crypto.DataBlockSize]byte{},
 		Creator:      config.MinerId,
-		Filename:     "myFile3",
+		Filename:     "myFile2",
 		RecordNumber: 0,
 	}
 	s.AddJob(job)
 
 	// wait for job to be processed
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(0), fs.GetAll()["myFile3"].NumberOfRecords)
+	_, v = fs.GetAll()["myFile2"]
+	equals(t, false, v)
+
+	// -----------------------------------------------
+	// create the a new file, with the same name
+
+	job = crypto.BlockOp{
+		Type:         crypto.CreateFile,
+		Data:         [crypto.DataBlockSize]byte{},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
+		RecordNumber: 0,
+	}
+	s.AddJob(job)
+
+	job = crypto.BlockOp{
+		Type:         crypto.AppendFile,
+		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
+		Creator:      config.MinerId,
+		Filename:     "myFile2",
+		RecordNumber: 0,
+	}
+	s.AddJob(job)
+
+	// wait for job to be processed
+	time.Sleep(time.Second * 5)
+	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
+	ok(t, err)
+	equals(t, uint32(1), fs.GetAll()["myFile2"].NumberOfRecords)
 
 }
 
