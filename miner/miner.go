@@ -116,10 +116,6 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 	for {
 		lg.Println("Handling create file request")
 
-		if len([]byte(fname)) > MAX_FILENAME_LENGTH {
-			return BAD_FILENAME
-		}
-
 		// create job
 		job := new(crypto.BlockOp)
 		job.Type = crypto.CreateFile
@@ -134,19 +130,28 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 		// validate against file system state
 		_, _, err := (*miner.minerState.Tm).MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
 		if err != nil {
-			// todo ksenia. different errors are handled differently.
-			// 1. check for file already exists (return error to client)
-			return FILE_EXISTS
+			if cerr, ok := err.(state.CompositeError); ok {
+				// 1. check for file already exists (return error to client)
+				if _, ok := cerr.Current.(state.FileAlreadyExistsValidationError); ok {
+					return FILE_EXISTS
+				}
+				// 2. check for bad file name
+				if _, ok := cerr.Current.(state.BadFileNameValidationError); ok {
+					return BAD_FILENAME
+				}
+			}
 		}
 
 		// validate against accounts state
-		// todo what is the second argument to ValidateNewAccountState?
 		_, err = (*miner.minerState.Tm).MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block}, "")
 		if err != nil {
-			// todo ksenia. different errors are handled differently.
-			// 1. check for not enough money (retry)
-			time.Sleep(time.Second)
-			continue
+			if cerr, ok := err.(state.CompositeError); ok {
+				// 1. check for not enough money (retry)
+				if _, ok := cerr.Current.(state.NotEnoughMoneyValidationError); ok {
+					time.Sleep(time.Second)
+					continue
+				}
+			}
 		}
 
 		// add job wait for it to complete
@@ -230,22 +235,32 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 		// validate against file system state
 		_, _, err := (*miner.minerState.Tm).MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
 		if err != nil {
-			// 1. check for file does not exist (return error to client)
-			return 0, FILE_DOES_NOT_EXIST
-			// 2. check for append duplicate (retry)
-			continue
-			// 3. check for max length reached (return error to client)
-			return 0, MAX_LEN_REACHED
+			if cerr, ok := err.(state.CompositeError); ok {
+				// 1. check for file does not exist (return error to client)
+				if _, ok := cerr.Current.(state.FileDoesNotExistValidationError); ok {
+					return 0, FILE_DOES_NOT_EXIST
+				}
+				// 2. check for append duplicate (retry)
+				if _, ok := cerr.Current.(state.AppendDuplicateValidationError); ok {
+					continue
+				}
+				// 3. check for max length reached (return error to client)
+				if _, ok := cerr.Current.(state.MaxLengthReachedValidationError); ok {
+					return 0, MAX_LEN_REACHED
+				}
+			}
 		}
 
 		// validate against accounts state
-		// todo second argument?
 		_, err = (*miner.minerState.Tm).MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block}, "")
 		if err != nil {
-			// todo ksenia. different errors are handled differently.
-			// 1. check for not enough money (retry)
-			time.Sleep(time.Second)
-			continue
+			if cerr, ok := err.(state.CompositeError); ok {
+				// 1. check for not enough money (retry)
+				if _, ok := cerr.Current.(state.NotEnoughMoneyValidationError); ok {
+					time.Sleep(time.Second)
+					continue
+				}
+			}
 		}
 
 		// add job wait for it to complete
