@@ -15,7 +15,7 @@ type MinerState interface {
 }
 
 type MinerStateImpl struct {
-	tm *TreeManager
+	Tm      *TreeManager
 	clients []*api.MinerClient
 }
 
@@ -36,15 +36,15 @@ var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
 func (s MinerStateImpl) GetFilesystemState(
 	confirmsPerFileCreate int,
 	confirmsPerFileAppend int) (FilesystemState, error) {
-	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, s.tm.GetLongestChain())
+	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, s.Tm.GetLongestChain())
 }
 
 func (s MinerStateImpl) GetBlock(id string) (*crypto.Block, bool){
-	return s.tm.GetBlock(id)
+	return s.Tm.GetBlock(id)
 }
 
 func (s MinerStateImpl) GetRoots() []*crypto.Block {
-	return s.tm.GetRoots()
+	return s.Tm.GetRoots()
 }
 
 func (s MinerStateImpl) GetAccountState(
@@ -52,7 +52,7 @@ func (s MinerStateImpl) GetAccountState(
 	createFee int,
 	opReward int,
 	noOpReward int) (AccountsState, error) {
-	return NewAccountsState(appendFee, createFee, opReward, noOpReward, s.tm.GetLongestChain())
+	return NewAccountsState(appendFee, createFee, opReward, noOpReward, s.Tm.GetLongestChain())
 }
 
 func (s MinerStateImpl) GetRemoteBlock(id string) (*crypto.Block, bool) {
@@ -104,7 +104,7 @@ func (s MinerStateImpl) OnNewBlockInLongestChain(b *crypto.Block) {
 func (s MinerStateImpl) AddBlock(b *crypto.Block) {
 	lg.Printf("added new block: %x", b.Hash())
 	// add it to the tree manager and then broadcast the block
-	s.tm.AddBlock(crypto.BlockElement{
+	s.Tm.AddBlock(crypto.BlockElement{
 		Block: b,
 	})
 	// bkst block
@@ -145,7 +145,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		clients: cls,
 	}
 	var err error
-	ms.tm = NewTreeManager(config, ms, ms)
+	ms.Tm = NewTreeManager(config, ms, ms)
 	if err != nil {
 		panic(err)
 	}

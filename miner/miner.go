@@ -106,50 +106,53 @@ type MinerInstance struct {
 
 // errorType can be one of: FILE_EXISTS, BAD_FILENAME, NO_ERROR
 func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureType) {
-	lg.Println("Handling create file request")
+	for {
+		lg.Println("Handling create file request")
 
-	fs, err := miner.minerState.GetFilesystemState(
-		int(miner.minerConf.ConfirmsPerFileCreate),
-		int(miner.minerConf.ConfirmsPerFileAppend))
-	if err != nil {
-		// todo ksenia what to do about this case?
-		panic(err)
+		if len([]byte(fname)) > MAX_FILENAME_LENGTH {
+			return BAD_FILENAME
+		}
+
+		// create job
+		job := new(crypto.BlockOp)
+		job.Type = crypto.CreateFile
+		job.Creator = miner.minerConf.MinerID
+		job.Filename = fname
+		minerStateImpl := miner.minerState.(state.MinerStateImpl)
+		block := crypto.Block{
+			Type:      crypto.RegularBlock,
+			PrevBlock: nil /*todo ksenia*/,
+			Records:   []*crypto.BlockOp{job},
+			MinerId:   miner.minerConf.MinerID}
+
+		// validate against file system state
+		_, err := minerStateImpl.Tm.MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
+		if err != nil {
+			// todo ksenia. different errors are handled differently.
+			// 1. check for file already exists (return error to client)
+			return FILE_EXISTS
+		}
+
+		// validate against accounts state
+		_, err = minerStateImpl.Tm.MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block})
+		if err != nil {
+			// todo ksenia. different errors are handled differently.
+			// 1. check for not enough money (retry)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		// add job wait for it to complete
+		minerStateImpl.AddJob(job)
+		// todo ksenia
+		return NO_ERROR
 	}
-
-	// check if file already exists
-	_, ok := fs.GetFile(state.Filename(fname))
-	if ok {
-		return FILE_EXISTS
-	}
-
-	// check if bad file name
-	if len([]byte(fname)) > MAX_FILENAME_LENGTH {
-		return BAD_FILENAME
-	}
-
-	// proceed to add job
-	job := new(crypto.BlockOp)
-	job.Type = crypto.CreateFile
-	job.Creator = miner.minerConf.MinerID
-	job.Filename = fname
-	minerListener := miner.minerState.(state.MinerStateImpl)
-	minerListener.AddJob(job)
-
-	// wait for job to be complete
-	// TODO ksenia
-	return NO_ERROR
 }
 
 func (miner MinerInstance) ListFilesHandler() (fnames []string) {
 	lg.Println("Handling list files request")
 
-	fs, err := miner.minerState.GetFilesystemState(
-		int(miner.minerConf.ConfirmsPerFileCreate),
-		int(miner.minerConf.ConfirmsPerFileAppend))
-	if err != nil {
-		// todo ksenia silently fail?
-		return []string{}
-	}
+	fs := miner.getFileSystemState()
 
 	files := fs.GetAll()
 	fnames = make([]string, len(files))
@@ -165,13 +168,7 @@ func (miner MinerInstance) ListFilesHandler() (fnames []string) {
 func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType) {
 	lg.Println("Handling total records request")
 
-	fs, err := miner.minerState.GetFilesystemState(
-		int(miner.minerConf.ConfirmsPerFileCreate),
-		int(miner.minerConf.ConfirmsPerFileAppend))
-	if err != nil {
-		// todo ksenia what to do about this case?
-		panic(err)
-	}
+	fs := miner.getFileSystemState()
 
 	file, ok := fs.GetFile(state.Filename(fname))
 	if !ok {
@@ -185,13 +182,7 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 	lg.Println("Handling read record request")
 	var read_result [512]byte
 
-	fs, err := miner.minerState.GetFilesystemState(
-		int(miner.minerConf.ConfirmsPerFileCreate),
-		int(miner.minerConf.ConfirmsPerFileAppend))
-	if err != nil {
-		// todo ksenia what to do about this case?
-		panic(err)
-	}
+	fs := miner.getFileSystemState()
 
 	file, ok := fs.GetFile(state.Filename(fname))
 	if !ok {
@@ -205,40 +196,57 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 
 // errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, NO_ERROR
 func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType) {
-	lg.Println("Handling append record request")
+	for {
+		lg.Println("Handling append record request")
 
-	fs, err := miner.minerState.GetFilesystemState(
-		int(miner.minerConf.ConfirmsPerFileCreate),
-		int(miner.minerConf.ConfirmsPerFileAppend))
-	if err != nil {
-		// todo ksenia what to do about this case?
-		panic(err)
+		fs := miner.getFileSystemState()
+
+		// check if file already exists
+		file, ok := fs.GetFile(state.Filename(fname))
+		if !ok {
+			return 0, FILE_DOES_NOT_EXIST
+		}
+
+		// create job
+		job := new(crypto.BlockOp)
+		job.Type = crypto.AppendFile
+		job.Creator = miner.minerConf.MinerID
+		job.Filename = fname
+		job.RecordNumber = file.NumberOfRecords
+		copy(job.Data[:], record[:])
+		minerStateImpl := miner.minerState.(state.MinerStateImpl)
+		block := crypto.Block{
+			Type:      crypto.RegularBlock,
+			PrevBlock: nil /*todo ksenia*/,
+			Records:   []*crypto.BlockOp{job},
+			MinerId:   miner.minerConf.MinerID}
+
+		// validate against file system state
+		_, err := minerStateImpl.Tm.MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
+		if err != nil {
+			// 1. check for file does not exist (return error to client)
+			return 0, FILE_DOES_NOT_EXIST
+			// 2. check for append duplicate (retry)
+			continue
+			// 3. check for max length reached (return error to client)
+			return 0, MAX_LEN_REACHED
+		}
+
+		// validate against accounts state
+		_, err = minerStateImpl.Tm.MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block})
+		if err != nil {
+			// todo ksenia. different errors are handled differently.
+			// 1. check for not enough money (retry)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		// add job wait for it to complete
+		minerStateImpl.AddJob(job)
+		// todo ksenia
+
+		return 0, NO_ERROR
 	}
-
-	// check if file already exists
-	file, ok := fs.GetFile(state.Filename(fname))
-	if !ok {
-		return 0, FILE_DOES_NOT_EXIST
-	}
-
-	// check if file is at max length
-	if file.NumberOfRecords >= MAX_RECORD_COUNT {
-		return 0, MAX_LEN_REACHED
-	}
-
-	// proceed to add job
-	job := new(crypto.BlockOp)
-	job.Type = crypto.AppendFile
-	job.Creator = miner.minerConf.MinerID
-	job.Filename = fname
-	job.RecordNumber = file.NumberOfRecords
-	copy(job.Data[:], record[:])
-	minerListener := miner.minerState.(state.MinerStateImpl)
-	minerListener.AddJob(job)
-
-	// wait for job to be complete
-	// TODO ksenia
-	return 0, NO_ERROR
 }
 
 /////////// Helpers ///////////////////////////////////////////////////////
@@ -261,4 +269,15 @@ func ParseConfig(fileName string) (MinerConfiguration, error){
 		return MinerConfiguration{}, err
 	}
 	return m, nil
+}
+
+func (miner MinerInstance) getFileSystemState() state.FilesystemState {
+	fs, err := miner.minerState.GetFilesystemState(
+		int(miner.minerConf.ConfirmsPerFileCreate),
+		int(miner.minerConf.ConfirmsPerFileAppend))
+	if err != nil {
+		// todo ksenia what to do about this case?
+		panic(err)
+	}
+	return fs
 }

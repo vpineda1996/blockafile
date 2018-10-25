@@ -22,16 +22,16 @@ type TreeChangeListener interface {
 // This is one of the most critical areas of a miner, it is the only one that will have access to
 // the blockchain tree itself
 type TreeManager struct {
-	br BlockRetriever
-	mTree BlockChainTree
-	findBlockQueue *datastruct.Queue
+	br              BlockRetriever
+	MTree           BlockChainTree
+	findBlockQueue  *datastruct.Queue
 	findBlockNotify chan bool
 	shutdownThreads bool
-	mtx *sync.Mutex
+	mtx             *sync.Mutex
 }
 
 func (t *TreeManager) GetBlock(id string) (*crypto.Block, bool){
-	v, ok := t.mTree.Find(id)
+	v, ok := t.MTree.Find(id)
 	if !ok {
 		return nil, false
 	}
@@ -43,7 +43,7 @@ func (t *TreeManager) GetBlock(id string) (*crypto.Block, bool){
 }
 
 func (t *TreeManager) GetRoots() []*crypto.Block {
-	arr := t.mTree.GetRoots()
+	arr := t.MTree.GetRoots()
 	bkArr := make([]*crypto.Block, len(arr))
 	for i, v := range arr {
 		bk, ok := v.Value.(crypto.BlockElement)
@@ -56,10 +56,10 @@ func (t *TreeManager) GetRoots() []*crypto.Block {
 }
 
 func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
-	if _, ok := t.mTree.Find(b.ParentId()); ok {
+	if _, ok := t.MTree.Find(b.ParentId()); ok {
 		// simple case: the reference node is in the chain
-		if _, ok := t.mTree.Find(b.Id()); !ok {
-			_, err := t.mTree.Add(b)
+		if _, ok := t.MTree.Find(b.Id()); !ok {
+			_, err := t.MTree.Add(b)
 			if err != nil {
 				return err
 			}
@@ -69,7 +69,7 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	if b.Block.Type == crypto.GenesisBlock {
 		// second case, its the genesis case
 
-		_, err := t.mTree.Add(b)
+		_, err := t.MTree.Add(b)
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 }
 
 func (t *TreeManager) GetLongestChain() *datastruct.Node {
-	return t.mTree.GetLongestChain()
+	return t.MTree.GetLongestChain()
 }
 
 
@@ -110,8 +110,8 @@ func blockAdderHelper(t* TreeManager, b crypto.BlockElement) bool {
 	}
 
 	// parent block is in the tree, add it
-	if _, ok := t.mTree.Find(b.ParentId()); ok {
-		if _, ok := t.mTree.Find(b.Id()); !ok {
+	if _, ok := t.MTree.Find(b.ParentId()); ok {
+		if _, ok := t.MTree.Find(b.Id()); !ok {
 			t.AddBlock(b)
 		}
 		return true
@@ -195,10 +195,10 @@ func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *Tree
 	tm :=  &TreeManager{
 		mtx:     new(sync.Mutex),
 		br: br,
-		mTree:   BlockChainTree{
-			mTree: tree,
-			tcl: tcl,
-			validator: NewBlockChainValidator(cnf, tree),
+		MTree:   BlockChainTree{
+			mTree:     tree,
+			tcl:       tcl,
+			Validator: NewBlockChainValidator(cnf, tree),
 		},
 		findBlockQueue: &datastruct.Queue{},
 		findBlockNotify: make(chan bool),
@@ -211,7 +211,7 @@ func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *Tree
 
 type BlockChainTree struct {
 	mTree     *datastruct.MRootTree
-	validator *BlockChainValidator
+	Validator *BlockChainValidator
 	tcl       TreeChangeListener
 }
 
@@ -221,7 +221,7 @@ func (b BlockChainTree) Find(id string) (*datastruct.Node, bool){
 
 // adds block to the blockchain give that it passes all validations
 func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error) {
-	root, err := b.validator.Validate(block)
+	root, err := b.Validator.Validate(block)
 	if err != nil {
 		lg.Printf("Rejected block %v, due to %v\n", block.Id(), err)
 		return nil, err

@@ -127,7 +127,6 @@ func TestServiceClientRequest(t *testing.T) {
 		sendRequest(validRequest, connClient, t)
 		response, timeout := getResponseOrTimeout(connClient, t)
 		assert(t, !timeout, "should get response for list files request")
-		assert(t, response.FileNames != nil, "file names array should not be nil")
 	})
 
 	t.Run("should respond to total records request", func(t *testing.T) {
