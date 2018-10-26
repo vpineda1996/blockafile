@@ -16,12 +16,12 @@ import (
 
 type MinerState struct {
 	// dont ask of the double ptr, its cancer but there is no other way
-	logger  *govec.GoLog
-	Tm      **TreeManager
-	clients *map[string]*api.MinerClient
-	bc      **BlockCalculator
-	minerId string
-	lAddr   string
+	logger    *govec.GoLog
+	tm        **TreeManager
+	clients   *map[string]*api.MinerClient
+	bc        **BlockCalculator
+	minerId   string
+	lAddr     string
 	listeners *list.List
 }
 
@@ -49,15 +49,15 @@ var WARN = govec.GoLogOptions{Priority: govec.WARNING}
 func (s MinerState) GetFilesystemState(
 	confirmsPerFileCreate int,
 	confirmsPerFileAppend int) (FilesystemState, error) {
-	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, (*s.Tm).GetLongestChain())
+	return NewFilesystemState(confirmsPerFileCreate, confirmsPerFileAppend, (*s.tm).GetLongestChain())
 }
 
 func (s MinerState) GetBlock(id string) (*crypto.Block, bool) {
-	return (*s.Tm).GetBlock(id)
+	return (*s.tm).GetBlock(id)
 }
 
 func (s MinerState) GetRoots() []*crypto.Block {
-	return (*s.Tm).GetRoots()
+	return (*s.tm).GetRoots()
 }
 
 func (s MinerState) GetAccountState(
@@ -65,7 +65,7 @@ func (s MinerState) GetAccountState(
 	createFee int,
 	opReward int,
 	noOpReward int) (AccountsState, error) {
-	return NewAccountsState(appendFee, createFee, opReward, noOpReward, (*s.Tm).GetLongestChain())
+	return NewAccountsState(appendFee, createFee, opReward, noOpReward, (*s.tm).GetLongestChain())
 }
 
 func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
@@ -123,8 +123,8 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 
 func (s MinerState) AddBlock(b *crypto.Block) {
 	// add it to the tree manager and then broadcast the block
-	if !(*s.Tm).Exists(b) {
-		err := (*s.Tm).AddBlock(crypto.BlockElement{
+	if !(*s.tm).Exists(b) {
+		err := (*s.tm).AddBlock(crypto.BlockElement{
 			Block: b,
 		})
 		if err != nil {
@@ -166,19 +166,19 @@ func (s MinerState) broadcastJob(b *crypto.BlockOp) {
 }
 
 func (s MinerState) GetHighestRoot() *crypto.Block {
-	return (*s.Tm).GetHighestRoot()
+	return (*s.tm).GetHighestRoot()
 }
 
 func (s MinerState) GetMinerId() string {
 	return s.minerId
 }
 
-func (s MinerState) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
-	return (*s.Tm).ValidateJobSet(bOps)
+func (s MinerState) ValidateJobSet(bOps []*crypto.BlockOp) ([]*crypto.BlockOp, error, error) {
+	return (*s.tm).ValidateJobSet(bOps)
 }
 
 func (s MinerState) InLongestChain(id string) int {
-	return (*s.Tm).InLongestChain(id)
+	return (*s.tm).InLongestChain(id)
 }
 
 func (s MinerState) SleepMiner() {
@@ -218,12 +218,12 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	var treePtr *TreeManager
 	var blockCalcPtr *BlockCalculator
 	ms := MinerState{
-		clients: &cls,
-		minerId: config.MinerId,
-		Tm:      &treePtr,
-		bc:      &blockCalcPtr,
-		logger:  logger,
-		lAddr:   config.Address,
+		clients:   &cls,
+		minerId:   config.MinerId,
+		tm:        &treePtr,
+		bc:        &blockCalcPtr,
+		logger:    logger,
+		lAddr:     config.Address,
 		listeners: list.New(),
 	}
 	treePtr = NewTreeManager(config, ms, ms)
@@ -241,7 +241,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		calcThresh)
 
 	// add genesis block
-	err := (*ms.Tm).AddBlock(crypto.BlockElement{
+	err := (*ms.tm).AddBlock(crypto.BlockElement{
 		Block: &crypto.Block{
 			Records:   []*crypto.BlockOp{},
 			Type:      crypto.GenesisBlock,
@@ -256,7 +256,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	}
 
 	// start threads
-	(*ms.Tm).StartThreads()
+	(*ms.tm).StartThreads()
 	(*ms.bc).StartThreads()
 
 	err = api.InitMinerServer(config.Address, ms, ms.logger)

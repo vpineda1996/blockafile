@@ -19,7 +19,7 @@ type BlockCalculatorListener interface {
 	GetRoots() []*crypto.Block
 	GetHighestRoot() *crypto.Block
 	GetMinerId() string
-	ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp
+	ValidateJobSet(bOps []*crypto.BlockOp) ([]*crypto.BlockOp, error, error)
 	InLongestChain(id string) int
 }
 
@@ -174,7 +174,8 @@ func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 		bOps = append(bOps, blk)
 	}
 
-	return bc.listener.ValidateJobSet(bOps)
+	newOps, _, _ := bc.listener.ValidateJobSet(bOps)
+	return newOps
 }
 
 func NewBlockCalculator(state BlockCalculatorListener,

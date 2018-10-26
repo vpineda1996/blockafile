@@ -6,6 +6,7 @@ import (
 	. "../shared"
 	"./state"
 	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -61,7 +62,13 @@ func main() {
 
 	// Initialize miner state
 	var blockHashBytes [md5.Size]byte
-	copy(blockHashBytes[:], conf.GenesisBlockHash)
+	blockHashBytesFull, err := hex.DecodeString(conf.GenesisBlockHash)
+	if err != nil {
+		lg.Println(err)
+		os.Exit(1)
+	}
+	copy(blockHashBytes[:], blockHashBytesFull[:md5.Size])
+
 	minerStateConf := state.Config{
 		AppendFee: state.Balance(1),
 		CreateFee: state.Balance(conf.NumCoinsPerFileCreate),
@@ -69,7 +76,7 @@ func main() {
 		NoOpReward: state.Balance(conf.MinedCoinsPerNoOpBlock),
 		OpNumberOfZeros: int(conf.PowPerOpBlock),
 		NoOpNumberOfZeros: int(conf.PowPerNoOpBlock),
-		Address: "", // todo ksenia. we have several addresses in config, need to update this
+		Address: conf.IncomingMinersAddr, // todo ksenia. we have several addresses in config, need to update this
 		ConfirmsPerFileCreate: int(conf.ConfirmsPerFileCreate),
 		ConfirmsPerFileAppend: int(conf.ConfirmsPerFileAppend),
 		OpPerBlock: 30, // todo victor can you give me some insight as to what this value should be?
@@ -121,36 +128,22 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 		job.Type = crypto.CreateFile
 		job.Creator = miner.minerConf.MinerID
 		job.Filename = fname
-		block := crypto.Block{
-			Type:      crypto.RegularBlock,
-			PrevBlock: [16]byte{} /*todo ksenia do I need to set this?*/,
-			Records:   []*crypto.BlockOp{job},
-			MinerId:   miner.minerConf.MinerID}
 
-		// validate against file system state
-		_, _, err := (*miner.minerState.Tm).MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
-		if err != nil {
-			if cerr, ok := err.(state.CompositeError); ok {
-				// 1. check for file already exists (return error to client)
-				if _, ok := cerr.Current.(state.FileAlreadyExistsValidationError); ok {
-					return FILE_EXISTS
-				}
-				// 2. check for bad file name
-				if _, ok := cerr.Current.(state.BadFileNameValidationError); ok {
-					return BAD_FILENAME
-				}
+		// validate against file system, accounts states
+		_, acctsErr, filesErr := miner.minerState.ValidateJobSet([]*crypto.BlockOp{job})
+
+		if acctsErr != nil {
+			singleAcctsErr := getSingleAccountsError(acctsErr)
+			if singleAcctsErr == NOT_ENOUGH_MONEY {
+				time.Sleep(time.Second)
+				continue
 			}
 		}
 
-		// validate against accounts state
-		_, err = (*miner.minerState.Tm).MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block}, "")
-		if err != nil {
-			if cerr, ok := err.(state.CompositeError); ok {
-				// 1. check for not enough money (retry)
-				if _, ok := cerr.Current.(state.NotEnoughMoneyValidationError); ok {
-					time.Sleep(time.Second)
-					continue
-				}
+		if filesErr != nil {
+			singleFilesErr := getSingleFilesError(filesErr)
+			if singleFilesErr == FILE_EXISTS || singleFilesErr == BAD_FILENAME {
+				return singleFilesErr
 			}
 		}
 
@@ -241,40 +234,24 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 		job.Filename = fname
 		job.RecordNumber = file.NumberOfRecords
 		copy(job.Data[:], record[:])
-		block := crypto.Block{
-			Type:      crypto.RegularBlock,
-			PrevBlock: [16]byte{} /*todo ksenia do I need to set this?*/,
-			Records:   []*crypto.BlockOp{job},
-			MinerId:   miner.minerConf.MinerID}
 
-		// validate against file system state
-		_, _, err := (*miner.minerState.Tm).MTree.Validator.ValidateNewFSState(crypto.BlockElement{Block: &block})
-		if err != nil {
-			if cerr, ok := err.(state.CompositeError); ok {
-				// 1. check for file does not exist (return error to client)
-				if _, ok := cerr.Current.(state.FileDoesNotExistValidationError); ok {
-					return 0, FILE_DOES_NOT_EXIST
-				}
-				// 2. check for append duplicate (retry)
-				if _, ok := cerr.Current.(state.AppendDuplicateValidationError); ok {
-					continue
-				}
-				// 3. check for max length reached (return error to client)
-				if _, ok := cerr.Current.(state.MaxLengthReachedValidationError); ok {
-					return 0, MAX_LEN_REACHED
-				}
+		// validate against file system, accounts states
+		_, acctsErr, filesErr := miner.minerState.ValidateJobSet([]*crypto.BlockOp{job})
+
+		if acctsErr != nil {
+			singleAcctsErr := getSingleAccountsError(acctsErr)
+			if singleAcctsErr == NOT_ENOUGH_MONEY {
+				time.Sleep(time.Second)
+				continue
 			}
 		}
 
-		// validate against accounts state
-		_, err = (*miner.minerState.Tm).MTree.Validator.ValidateNewAccountState(crypto.BlockElement{Block: &block}, "")
-		if err != nil {
-			if cerr, ok := err.(state.CompositeError); ok {
-				// 1. check for not enough money (retry)
-				if _, ok := cerr.Current.(state.NotEnoughMoneyValidationError); ok {
-					time.Sleep(time.Second)
-					continue
-				}
+		if filesErr != nil {
+			singleFilesErr := getSingleFilesError(filesErr)
+			if singleFilesErr == FILE_DOES_NOT_EXIST || singleFilesErr == MAX_LEN_REACHED {
+				return 0, singleFilesErr
+			} else if singleFilesErr == APPEND_DUPLICATE {
+				continue
 			}
 		}
 
@@ -333,4 +310,33 @@ func (miner MinerInstance) getFileSystemState() state.FilesystemState {
 		panic(err)
 	}
 	return fs
+}
+
+func getSingleAccountsError(compositeError error) FailureType {
+	// todo ksenia make this better
+	if cerr, ok := compositeError.(state.CompositeError); ok {
+		if _, ok := cerr.Current.(state.FileAlreadyExistsValidationError); ok {
+			return FILE_EXISTS
+		} else if _, ok := cerr.Current.(state.BadFileNameValidationError); ok {
+			return BAD_FILENAME
+		} else if _, ok := cerr.Current.(state.FileDoesNotExistValidationError); ok {
+			return FILE_DOES_NOT_EXIST
+		} else if _, ok := cerr.Current.(state.AppendDuplicateValidationError); ok {
+			return APPEND_DUPLICATE
+		} else if _, ok := cerr.Current.(state.MaxLengthReachedValidationError); ok {
+			return MAX_LEN_REACHED
+		}
+	}
+	return NO_ERROR
+}
+
+func getSingleFilesError(compositeError error) FailureType {
+	// todo ksenia make this better
+	if cerr, ok := compositeError.(state.CompositeError); ok {
+		if _, ok := cerr.Current.(state.NotEnoughMoneyValidationError); ok {
+			time.Sleep(time.Second)
+			return NOT_ENOUGH_MONEY
+		}
+	}
+	return NO_ERROR
 }

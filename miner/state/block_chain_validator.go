@@ -84,17 +84,17 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 		return nil, errors.New("node is already on the blockchain")
 	}
 
-	valid := validateBlockHash(b, bcv.cnf.OpNumberOfZeros, bcv.cnf.NoOpNumberOfZeros)
-
-	if !valid {
-		return nil, errors.New("this is a corrupt node, failing")
-	}
-
 	if b.Block.Type == crypto.GenesisBlock {
 		if len(bcv.mTree.GetRoots()) > 0 {
 			return nil, errors.New("cannot add more than one genesis block")
 		}
 		return nil, nil
+	}
+
+	valid := validateBlockHash(b, bcv.cnf.OpNumberOfZeros, bcv.cnf.NoOpNumberOfZeros)
+
+	if !valid {
+		return nil, errors.New("this is a corrupt node, failing")
 	}
 
 	// get the prev block from the blockchain
@@ -125,12 +125,12 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 		bcv.lastFilesystemState = fss
 	}
 
-	fsUp, deletedFiles, err := bcv.ValidateNewFSState(b)
+	fsUp, deletedFiles, err := bcv.validateNewFSState(b)
 	if err != nil {
 		return nil, err
 	}
 
-	accUp, err := bcv.ValidateNewAccountState(b, root.Id)
+	accUp, err := bcv.validateNewAccountState(b, root.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -143,9 +143,12 @@ func (bcv *BlockChainValidator) Validate(b crypto.BlockElement) (*datastruct.Nod
 	return root, nil
 }
 
-func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *datastruct.Node) []*crypto.BlockOp {
+
+func (bcv *BlockChainValidator) ValidateJobSet(
+	ops []*crypto.BlockOp,
+	rootNode *datastruct.Node) (newOps []*crypto.BlockOp, accountsError error, filesError error) {
 	if len(ops) == 0 {
-		return ops
+		return ops, nil, nil
 	}
 
 	bcv.mtx.Lock()
@@ -159,11 +162,11 @@ func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *
 			int(bcv.cnf.NoOpReward),
 			rootNode)
 		if err != nil {
-			return []*crypto.BlockOp{}
+			return []*crypto.BlockOp{}, err, nil
 		}
 		fss, err := NewFilesystemState(bcv.cnf.ConfirmsPerFileCreate, bcv.cnf.ConfirmsPerFileAppend, rootNode)
 		if err != nil {
-			return []*crypto.BlockOp{}
+			return []*crypto.BlockOp{}, nil, err
 		}
 		bcv.generatingNodeId = rootNode.Id
 		bcv.lastStateAccount = bcas
@@ -177,19 +180,21 @@ func (bcv *BlockChainValidator) ValidateJobSet(ops []*crypto.BlockOp, rootNode *
 		var err error
 		newOps, _, err = bcv.validateNewFSBlockOps(newOps, nFile)
 		if err != nil {
+			filesError = CompositeError{filesError, err}
 			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
 		}
 
 		nAcc := make(map[Account]Balance)
 		newOps, err = bcv.validateNewAccountBlockOps(newOps, bcv.mTree.GetLongestChain().Id, nAcc)
 		if err != nil {
+			filesError = CompositeError{accountsError, err}
 			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
 		}
 	}
-	return newOps
+	return newOps, accountsError, filesError
 }
 
-func (bcv *BlockChainValidator) ValidateNewFSState(b crypto.BlockElement) (map[Filename]*FileInfo, map[string]bool, error) {
+func (bcv *BlockChainValidator) validateNewFSState(b crypto.BlockElement) (map[Filename]*FileInfo, map[string]bool, error) {
 	res := make(map[Filename]*FileInfo)
 	bcs := b.Block.Records
 	_, deletedFiles, err := bcv.validateNewFSBlockOps(bcs, res)
@@ -227,7 +232,7 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 					continue
 				}
 			}
-			lg.Printf("Validator: creating file %v", tx.Filename)
+			lg.Printf("validator: creating file %v", tx.Filename)
 			fi := FileInfo{
 				Data:            make([]byte, 0, crypto.DataBlockSize),
 				NumberOfRecords: 0,
@@ -330,7 +335,7 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 					continue
 				}
 			}
-			lg.Printf("Validator: removing file %v", tx.Filename)
+			lg.Printf("validator: removing file %v", tx.Filename)
 			validOps = append(validOps, tx)
 			deletedFiles[tx.Filename] = true
 		default:
@@ -343,7 +348,7 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 	return validOps, deletedFiles, err
 }
 
-func (bcv *BlockChainValidator) ValidateNewAccountState(b crypto.BlockElement, parentBlock string) (map[Account]Balance, error) {
+func (bcv *BlockChainValidator) validateNewAccountState(b crypto.BlockElement, parentBlock string) (map[Account]Balance, error) {
 	res := make(map[Account]Balance)
 	bcs := b.Block.Records
 
