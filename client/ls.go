@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./rfslib"
+	"../rfslib"
 	"fmt"
 	"io/ioutil"
 	"log"
