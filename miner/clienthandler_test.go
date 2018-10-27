@@ -1,8 +1,7 @@
 package main
 
 import (
-	"../shared"
-	"./state"
+	. "../shared"
 	"bytes"
 	"encoding/gob"
 	"fmt"
@@ -17,11 +16,37 @@ import (
 	"time"
 )
 
-var randomNumGenerator *rand.Rand
+var initialPort int
+var portMutex *sync.Mutex
 
 func init() {
 	seed := rand.NewSource(time.Now().UnixNano())
-	randomNumGenerator = rand.New(seed)
+	randomNumGenerator := rand.New(seed)
+	initialPort = 8080 + randomNumGenerator.Intn(1000)
+	portMutex = new(sync.Mutex)
+}
+
+type MockMiner struct {
+}
+
+func (m MockMiner) CreateFileHandler(fname string) (errorType FailureType) {
+	return NO_ERROR
+}
+
+func (m MockMiner) ListFilesHandler() (fnames []string) {
+	return []string{"File1", "File2", "File3"}
+}
+
+func (m MockMiner) TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType) {
+	return 3, NO_ERROR
+}
+
+func (m MockMiner) ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType FailureType) {
+	return [512]byte{}, NO_ERROR
+}
+
+func (m MockMiner) AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType) {
+	return 0, NO_ERROR
 }
 
 func TestListenForClients(t *testing.T) {
@@ -36,7 +61,7 @@ func TestListenForClients(t *testing.T) {
 
 	t.Run("should loop infinitely if no errors occurring", func(t *testing.T) {
 		wg := &sync.WaitGroup{}
-		testInstance := ClientHandler{waitGroup: wg, ListenHost: fmt.Sprintf("127.0.0.1:%v", generateRandomPort())}
+		testInstance := ClientHandler{waitGroup: wg, ListenHost: fmt.Sprintf("127.0.0.1:%v", generateNextPort())}
 		wg.Add(1)
 
 		var err error = nil
@@ -50,13 +75,11 @@ func TestListenForClients(t *testing.T) {
 }
 
 func TestServiceClientRequest(t *testing.T) {
-	minerAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+	minerAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 	maddr, _ := net.ResolveTCPAddr("tcp", minerAddr)
 
-	minerConf := MinerConfiguration{}
-	minerStateConf := state.Config{}
-	minerState := state.NewMinerState(minerStateConf, []string{})
-	var minerInstance Miner = MinerInstance{minerConf: minerConf, minerState: minerState}
+
+	var minerInstance Miner = MockMiner{}
 	wg := &sync.WaitGroup{}
 	testInstance := ClientHandler{waitGroup: wg, miner: &minerInstance}
 
@@ -78,7 +101,7 @@ func TestServiceClientRequest(t *testing.T) {
 	}()
 
 	t.Run("should close connection if client leaves", func(t *testing.T) {
-		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		assert(t, serviceError == nil, "error should be nil before execution of function")
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
@@ -89,13 +112,13 @@ func TestServiceClientRequest(t *testing.T) {
 	})
 
 	t.Run("should fail to parse the current request if decoding error occurs", func(t *testing.T) {
-		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		serviceError = nil
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
 		invalidRequest := 0
-		validRequest := shared.RFSClientRequest{}
+		validRequest := RFSClientRequest{RequestType: CREATE_FILE, FileName: "FileName"}
 		sendRequest(validRequest, connClient, t)
 		sendRequest(invalidRequest, connClient, t)
 		assert(t, serviceError == nil, "error should still be nil since no failure occurred")
@@ -106,81 +129,84 @@ func TestServiceClientRequest(t *testing.T) {
 	})
 
 	t.Run("should respond to create file request", func(t *testing.T) {
-		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		serviceError = nil
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
-		validRequest := shared.RFSClientRequest{RequestType: shared.CREATE_FILE, FileName: "FileName"}
+		validRequest := RFSClientRequest{RequestType: CREATE_FILE, FileName: "FileName"}
 		sendRequest(validRequest, connClient, t)
 		_, timeout := getResponseOrTimeout(connClient, t)
 		assert(t, !timeout, "should get response for create file request")
 	})
 
 	t.Run("should respond to list files request", func(t *testing.T) {
-		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		serviceError = nil
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
-		validRequest := shared.RFSClientRequest{RequestType: shared.LIST_FILES}
+		validRequest := RFSClientRequest{RequestType: LIST_FILES}
 		sendRequest(validRequest, connClient, t)
 		_, timeout := getResponseOrTimeout(connClient, t)
 		assert(t, !timeout, "should get response for list files request")
 	})
 
 	t.Run("should respond to total records request", func(t *testing.T) {
-		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		serviceError = nil
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
-		validRequest := shared.RFSClientRequest{RequestType: shared.TOTAL_RECS, FileName: "FileName"}
+		validRequest := RFSClientRequest{RequestType: TOTAL_RECS, FileName: "FileName"}
 		sendRequest(validRequest, connClient, t)
 		_, timeout := getResponseOrTimeout(connClient, t)
 		assert(t, !timeout, "should get response for total records request")
 	})
 
 	t.Run("should respond to read record request", func(t *testing.T) {
-		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		serviceError = nil
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
-		validRequest := shared.RFSClientRequest{RequestType: shared.READ_REC, FileName: "FileName", RecordNum: 0}
+		validRequest := RFSClientRequest{RequestType: READ_REC, FileName: "FileName", RecordNum: 0}
 		sendRequest(validRequest, connClient, t)
 		_, timeout := getResponseOrTimeout(connClient, t)
 		assert(t, !timeout, "should get response for read record request")
 	})
 
 	t.Run("should respond to append record request", func(t *testing.T) {
-		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		serviceError = nil
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
 		var record [512]byte
-		validRequest := shared.RFSClientRequest{RequestType: shared.APPEND_REC, FileName: "FileName", AppendRecord: record}
+		validRequest := RFSClientRequest{RequestType: APPEND_REC, FileName: "FileName", AppendRecord: record}
 		sendRequest(validRequest, connClient, t)
 		_, timeout := getResponseOrTimeout(connClient, t)
 		assert(t, !timeout, "should get response for append record request")
 	})
 
 	t.Run("should fail to parse the current request if invalid request type", func(t *testing.T) {
-		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateRandomPort())
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
 		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
 		serviceError = nil
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
-		validRequest := shared.RFSClientRequest{RequestType: -99}
+		validRequest := RFSClientRequest{RequestType: -99}
 		sendRequest(validRequest, connClient, t)
 		_, timeout := getResponseOrTimeout(connClient, t)
 		assert(t, timeout, "should timeout for invalid request type")
 	})
 }
 
-func generateRandomPort() int {
-	return 8080 + randomNumGenerator.Intn(110)
+func generateNextPort() int {
+	portMutex.Lock()
+	defer portMutex.Unlock()
+	initialPort++
+	return initialPort
 }
 
 func sendRequest(request interface{}, tcpConn *net.TCPConn, t *testing.T) {
@@ -193,8 +219,8 @@ func sendRequest(request interface{}, tcpConn *net.TCPConn, t *testing.T) {
 }
 
 // Returns the response and/or true if the read timed out
-func getResponseOrTimeout(tcpConn *net.TCPConn, t *testing.T) (shared.RFSMinerResponse, bool) {
-	minerResponse := shared.RFSMinerResponse{}
+func getResponseOrTimeout(tcpConn *net.TCPConn, t *testing.T) (RFSMinerResponse, bool) {
+	minerResponse := RFSMinerResponse{}
 	responseBuf := make([]byte, 1024)
 	tcpConn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	readLen, err := tcpConn.Read(responseBuf)
