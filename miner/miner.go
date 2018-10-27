@@ -79,7 +79,7 @@ func main() {
 		Address: conf.IncomingMinersAddr, // todo ksenia. we have several addresses in config, need to update this
 		ConfirmsPerFileCreate: int(conf.ConfirmsPerFileCreate),
 		ConfirmsPerFileAppend: int(conf.ConfirmsPerFileAppend),
-		OpPerBlock: 30, // todo victor can you give me some insight as to what this value should be?
+		OpPerBlock: 10,
 		MinerId: conf.MinerID,
 		GenesisBlockHash: blockHashBytes,
 		GenOpBlockTimeout: conf.GenOpBlockTimeout,
