@@ -34,12 +34,12 @@ func (m MinerClient) GetBlock(id string) (*crypto.Block, bool, error) {
 	case err := <-c:
 		// use err and result
 		if err != nil {
-			lg.Fatalf("getNode error: %v", err)
+			lg.Printf("getNode error: %v", err)
 			return nil, false, err
 		}
 	case <-time.After(time.Duration(time.Second * 5)):
 		// call timed out
-		lg.Fatal("getNode timeout")
+		lg.Println("getNode timeout")
 		return nil, false, errors.New("timeout error: getNode")
 	}
 
@@ -59,12 +59,12 @@ func (m MinerClient) GetRoots() ([]*crypto.Block, error) {
 	case err := <-c:
 		// use err and result
 		if err != nil {
-			lg.Fatal("GetRoots error" + fmt.Sprint(err))
+			lg.Println("GetRoots error" + fmt.Sprint(err))
 			return nil, err
 		}
 	case <-time.After(time.Duration(time.Second * 5)):
 		// call timed out
-		lg.Fatal("GetRoots timeout")
+		lg.Println("GetRoots timeout")
 		return nil, errors.New("GetRoots error: getNode")
 	}
 

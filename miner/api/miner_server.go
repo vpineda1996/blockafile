@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/DistributedClocks/GoVector/govec/vrpc"
-	"log"
 	"net"
 	"net/rpc"
 )
@@ -101,7 +100,7 @@ func InitMinerServer(addr string, state MinerServerListener, logger *govec.GoLog
 
 	l, e := net.Listen("tcp", addr)
 	if e != nil {
-		log.Fatal("listen error:", e)
+		lg.Printf("listen error:", e)
 		return e
 	}
 	lg.Printf("Started listening on port: %v", addr)
