@@ -180,14 +180,14 @@ func (bcv *BlockChainValidator) ValidateJobSet(
 		var err error
 		newOps, _, err = bcv.validateNewFSBlockOps(newOps, nFile)
 		if err != nil {
-			filesError = CompositeError{filesError, err}
+			filesError = err
 			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
 		}
 
 		nAcc := make(map[Account]Balance)
 		newOps, err = bcv.validateNewAccountBlockOps(newOps, bcv.mTree.GetLongestChain().Id, nAcc)
 		if err != nil {
-			accountsError = CompositeError{accountsError, err}
+			accountsError = err
 			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
 		}
 	}

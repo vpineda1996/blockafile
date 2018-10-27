@@ -312,7 +312,7 @@ func (miner MinerInstance) getFileSystemState() state.FilesystemState {
 	return fs
 }
 
-func getSingleAccountsError(compositeError error) FailureType {
+func getSingleFilesError(compositeError error) FailureType {
 	// todo ksenia make this better
 	if cerr, ok := compositeError.(state.CompositeError); ok {
 		if _, ok := cerr.Current.(state.FileAlreadyExistsValidationError); ok {
@@ -330,7 +330,7 @@ func getSingleAccountsError(compositeError error) FailureType {
 	return NO_ERROR
 }
 
-func getSingleFilesError(compositeError error) FailureType {
+func getSingleAccountsError(compositeError error) FailureType {
 	// todo ksenia make this better
 	if cerr, ok := compositeError.(state.CompositeError); ok {
 		if _, ok := cerr.Current.(state.NotEnoughMoneyValidationError); ok {
