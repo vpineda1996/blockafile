@@ -25,8 +25,8 @@ func (acl AppendConfirmationListener) TreeEventHandler() {
 		acl.ConfirmsPerFileCreate,
 		acl.ConfirmsPerFileAppend)
 	if err != nil {
-		// todo ksenia what to do about this case?
-		panic(err)
+		lg.Println("AppendConfirmationListener, ", err)
+		return
 	}
 
 	file, ok := fs.GetFile(Filename(acl.Filename))
@@ -61,6 +61,7 @@ func (ccl CreateConfirmationListener) TreeEventHandler() {
 		ccl.ConfirmsPerFileCreate,
 		ccl.ConfirmsPerFileAppend)
 	if err != nil {
+		lg.Println("CreateConfirmationListener, ", err)
 		return
 	}
 
