@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
 	"log"
-	"os"
 	"sync"
 	"time"
 )
@@ -24,7 +23,7 @@ type MinerState struct {
 	minerId   string
 	lAddr     string
 	listeners *list.List
-	listenersMux sync.Mutex
+	listenersMux *sync.Mutex
 }
 
 type Config struct {
@@ -229,6 +228,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		logger:    logger,
 		lAddr:     config.Address,
 		listeners: list.New(),
+		listenersMux: new(sync.Mutex),
 	}
 	treePtr = NewTreeManager(config, ms, ms)
 
