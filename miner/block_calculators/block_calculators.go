@@ -52,6 +52,11 @@ func (bc *BlockCalculator) AddJob(b *crypto.BlockOp) {
 }
 
 func (bc *BlockCalculator) JobExists(b *crypto.BlockOp) int {
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+	return bc.jobExists(b)
+}
+func (bc *BlockCalculator) jobExists(b *crypto.BlockOp) int {
 	eqFn := func(j interface{}) bool {
 		job := j.(*crypto.BlockOp)
 		return reflect.DeepEqual(*job, *b)
@@ -63,7 +68,7 @@ func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
 	for _, rc := range block.Records {
-		for hpIdx := bc.JobExists(rc); hpIdx >= 0; hpIdx = bc.JobExists(rc) {
+		for hpIdx := bc.jobExists(rc); hpIdx >= 0; hpIdx = bc.jobExists(rc) {
 			heap.Remove(bc.jobSet, hpIdx)
 		}
 	}
@@ -158,14 +163,15 @@ func getBlockOps(bc *BlockCalculator) []*crypto.BlockOp {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
 	bOps := make([]*crypto.BlockOp, 0, bc.opsPerBlock)
-	for i := 0; i < bc.opsPerBlock && bc.jobSet.Len() > 0; i++ {
+	for i := 0; i < (bc.opsPerBlock + 1) && bc.jobSet.Len() > 0; i++ {
 		if i == 0 {
 			bc.mtx.Unlock()
 			time.Sleep(time.Millisecond * bc.timePerBlockTimeoutMillis)
 			bc.mtx.Lock()
+		} else {
+			blk := heap.Pop(bc.jobSet).(*datastruct.Item).Value.(*crypto.BlockOp)
+			bOps = append(bOps, blk)
 		}
-		blk := heap.Pop(bc.jobSet).(*datastruct.Item).Value.(*crypto.BlockOp)
-		bOps = append(bOps, blk)
 	}
 
 	newOps, _, _ := bc.listener.ValidateJobSet(bOps)
