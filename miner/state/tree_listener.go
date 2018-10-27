@@ -2,7 +2,7 @@ package state
 
 import (
 	. "../../shared"
-	"reflect"
+	"bytes"
 )
 
 type TreeListener interface {
@@ -41,7 +41,7 @@ func (acl AppendConfirmationListener) TreeEventHandler() {
 	}
 
 	startIndex := acl.RecordNumber * 512
-	if reflect.DeepEqual(acl.Data[:], file.Data[startIndex : startIndex + 512]) {
+	if bytes.Equal(acl.Data[:], file.Data[startIndex : startIndex + 512]) {
 		acl.NotifyChannel <- 1
 	}
 	return
