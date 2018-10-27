@@ -101,13 +101,7 @@ func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *b
 		PrevBlock: rootHash,
 	}
 
-	var zeros int
-	switch blockType {
-	case crypto.RegularBlock, crypto.GenesisBlock:
-		zeros = bc.opNumberOfZeros
-	case crypto.NoOpBlock:
-		zeros = bc.noOpNumberOfZeros
-	}
+	zeros := bk.GetZerosForType(bc.opNumberOfZeros, bc.noOpNumberOfZeros)
 	bk.FindNonceWithStopSignal(zeros, suspendBool)
 	return &bk
 }
