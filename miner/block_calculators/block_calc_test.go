@@ -62,12 +62,12 @@ func (bg blkGenList) GetMinerId() string {
 	return minerId
 }
 
-func (bg blkGenList) ValidateJobSet(bOps []*BlockOp) []*BlockOp {
+func (bg blkGenList) ValidateJobSet(bOps []*BlockOp) ([]*BlockOp, error, error) {
 	*bg.validate += 1
 	if len(bOps) == 0 {
-		return bOps
+		return bOps, nil, nil
 	}
-	return bg.blockOps
+	return bg.blockOps, nil, nil
 }
 
 const minerId = "william"
