@@ -104,7 +104,7 @@ func (b *Block) valid(ser []byte, zeros int) bool {
 	return true
 }
 
-func (b *Block) Valid(zerosOp int, zerosNoOp int) bool {
+func (b *Block) getZerosForType(zerosOp int, zerosNoOp int) int {
 	var zeros int
 	switch b.Type {
 	case GenesisBlock, RegularBlock:
@@ -112,18 +112,16 @@ func (b *Block) Valid(zerosOp int, zerosNoOp int) bool {
 	case NoOpBlock:
 		zeros = zerosNoOp
 	}
+	return zeros
+}
+
+func (b *Block) Valid(zerosOp int, zerosNoOp int) bool {
+	zeros := b.getZerosForType(zerosOp, zerosNoOp)
 	return b.valid(b.serialize(), zeros)
 }
 
 func (b *Block) FindNonce(zerosOp int, zerosNoOp int) {
-	var zeros int
-	switch b.Type {
-	case GenesisBlock, RegularBlock:
-		zeros = zerosOp
-	case NoOpBlock:
-		zeros = zerosNoOp
-	}
-
+	zeros := b.getZerosForType(zerosOp, zerosNoOp)
 	b.FindNonceWithStopSignal(zeros, new(bool))
 }
 
