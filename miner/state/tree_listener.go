@@ -69,7 +69,7 @@ func (ccl CreateConfirmationListener) TreeEventHandler() {
 	if !ok {
 		return
 	}
-	if file.Creator != ccl.Creator {
+	if file.Creator == ccl.Creator {
 		ccl.NotifyChannel <- 1
 	}
 	return
