@@ -151,7 +151,7 @@ func (b BlockElement) Encode() []byte {
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(b.Block)
 	if err != nil {
-		log.Fatalf("Couldn't encode block: %v\n", b.Block)
+		log.Printf("Couldn't encode block: %v\n", b.Block)
 	}
 	return buf.Bytes()
 }
@@ -165,7 +165,7 @@ func (b BlockElement) New(r io.Reader) datastruct.Element {
 	err := dec.Decode(&newBlock)
 
 	if err != nil {
-		log.Fatalf("Couldn't decode a block: %v", err)
+		log.Printf("Couldn't decode a block: %v", err)
 		return nil
 	}
 
