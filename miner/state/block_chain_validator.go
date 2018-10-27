@@ -187,7 +187,7 @@ func (bcv *BlockChainValidator) ValidateJobSet(
 		nAcc := make(map[Account]Balance)
 		newOps, err = bcv.validateNewAccountBlockOps(newOps, bcv.mTree.GetLongestChain().Id, nAcc)
 		if err != nil {
-			filesError = CompositeError{accountsError, err}
+			accountsError = CompositeError{accountsError, err}
 			lg.Printf("Rejected some ops, the following is a sample error: %v\n", err)
 		}
 	}

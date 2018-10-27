@@ -11,6 +11,7 @@ import (
 	"github.com/DistributedClocks/GoVector/govec"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type MinerState struct {
 	minerId   string
 	lAddr     string
 	listeners *list.List
+	listenersMux sync.Mutex
 }
 
 type Config struct {
@@ -201,7 +203,9 @@ func (s MinerState) AddHost(h string) {
 }
 
 func (s MinerState) AddTreeListener(listener TreeListener) {
+	s.listenersMux.Lock()
 	s.listeners.PushBack(listener)
+	s.listenersMux.Unlock()
 }
 
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
