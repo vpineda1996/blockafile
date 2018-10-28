@@ -290,7 +290,7 @@ func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error)
 	}
 
 	nd, err := b.mTree.PrependElement(block, root)
-	lg.Printf("Added block %v\n", block.Id())
+	lg.Printf("Added block of type %v: %v\n", block.Block.Type, block.Id() )
 	if err != nil {
 		return nil, err
 	}

@@ -88,7 +88,7 @@ func NoOpCalculator(bc *BlockCalculator) {
 	for !bc.shutdownThreads {
 		newBlock := generateNewBlock(bc, []*crypto.BlockOp{}, &bc.noopSuspended, crypto.NoOpBlock)
 		if !bc.noopSuspended && bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
-			lg.Printf("No-op calculator found a block")
+			//lg.Printf("No-op calculator found a block")
 			bc.listener.AddBlock(newBlock)
 		}
 		time.Sleep(time.Millisecond * 50)

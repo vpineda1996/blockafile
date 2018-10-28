@@ -6,7 +6,7 @@ import (
 )
 
 type TreeListener interface {
-	TreeEventHandler()
+	TreeEventHandler() bool
 }
 
 type AppendConfirmationListener struct {
@@ -20,31 +20,32 @@ type AppendConfirmationListener struct {
 	NotifyChannel chan int
 }
 
-func (acl AppendConfirmationListener) TreeEventHandler() {
+func (acl AppendConfirmationListener) TreeEventHandler() bool {
 	fs, err := acl.MinerState.GetFilesystemState(
 		acl.ConfirmsPerFileCreate,
 		acl.ConfirmsPerFileAppend)
 	if err != nil {
 		lg.Println("AppendConfirmationListener, ", err)
-		return
+		return false
 	}
 
 	file, ok := fs.GetFile(Filename(acl.Filename))
 	if !ok {
-		return
+		return false
 	}
 	if file.Creator != acl.Creator {
-		return
+		return false
 	}
 	if acl.RecordNumber >= file.NumberOfRecords {
-		return
+		return false
 	}
 
 	startIndex := acl.RecordNumber * 512
 	if bytes.Equal(acl.Data[:], file.Data[startIndex : startIndex + 512]) {
 		acl.NotifyChannel <- 1
+		return true
 	}
-	return
+	return false
 }
 
 type CreateConfirmationListener struct {
@@ -56,21 +57,22 @@ type CreateConfirmationListener struct {
 	NotifyChannel chan int
 }
 
-func (ccl CreateConfirmationListener) TreeEventHandler() {
+func (ccl CreateConfirmationListener) TreeEventHandler() bool {
 	fs, err := ccl.MinerState.GetFilesystemState(
 		ccl.ConfirmsPerFileCreate,
 		ccl.ConfirmsPerFileAppend)
 	if err != nil {
 		lg.Println("CreateConfirmationListener, ", err)
-		return
+		return false
 	}
 
 	file, ok := fs.GetFile(Filename(ccl.Filename))
 	if !ok {
-		return
+		return false
 	}
 	if file.Creator == ccl.Creator {
 		ccl.NotifyChannel <- 1
+		return true
 	}
-	return
+	return false
 }

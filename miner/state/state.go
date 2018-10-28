@@ -72,8 +72,15 @@ func (s MinerState) GetAccountState(
 }
 
 func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
+	cpyClients := make(map[string]*api.MinerClient)
+
 	s.clientsMux.Lock()
-	for _, c := range *s.clients {
+	for k, v := range *s.clients {
+		cpyClients[k] = v
+	}
+	s.clientsMux.Unlock()
+
+	for _, c := range cpyClients {
 		nd, ok, err := c.GetBlock(id)
 		if err != nil {
 			// todo vpineda prob remove that host from the host list
@@ -84,14 +91,20 @@ func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
 			return nd, true
 		}
 	}
-	s.clientsMux.Unlock()
 	return nil, false
 }
 
 func (s MinerState) GetRemoteRoots() []*crypto.Block {
 	blocks := make(map[string]*crypto.Block)
+	cpyClients := make(map[string]*api.MinerClient)
+
 	s.clientsMux.Lock()
-	for _, c := range *s.clients {
+	for k, v := range *s.clients {
+		cpyClients[k] = v
+	}
+	s.clientsMux.Unlock()
+
+	for _, c := range cpyClients {
 		arr, err := c.GetRoots()
 		if err != nil {
 			// todo vpineda prob remove that host from the host list
@@ -102,7 +115,6 @@ func (s MinerState) GetRemoteRoots() []*crypto.Block {
 			blocks[h.Id()] = h
 		}
 	}
-	s.clientsMux.Unlock()
 
 	blockArr := make([]*crypto.Block, len(blocks))
 	i := 0
@@ -121,8 +133,16 @@ func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
 }
 
 func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
+	s.listenersMux.Lock()
+	defer s.listenersMux.Unlock()
 	for e := s.listeners.Front(); e != nil; e = e.Next() {
-		go e.Value.(TreeListener).TreeEventHandler()
+		go func() {
+			if succeed := e.Value.(TreeListener).TreeEventHandler(); succeed {
+				s.listenersMux.Lock()
+				s.listeners.Remove(e)
+				s.listenersMux.Unlock()
+			}
+		}()
 	}
 	s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
 }
@@ -145,11 +165,16 @@ func (s MinerState) AddBlock(b *crypto.Block) {
 
 func (s MinerState) broadcastBlock(b *crypto.Block) {
 	go func() {
+		cpyClients := make(map[string]*api.MinerClient)
 		s.clientsMux.Lock()
-		for _, c := range *s.clients {
-			c.SendBlock(b)
+		for k, v := range *s.clients {
+			cpyClients[k] = v
 		}
 		s.clientsMux.Unlock()
+
+		for _, c := range cpyClients {
+			c.SendBlock(b)
+		}
 	}()
 }
 
@@ -167,11 +192,17 @@ func (s MinerState) AddJob(b crypto.BlockOp) {
 
 func (s MinerState) broadcastJob(b *crypto.BlockOp) {
 	go func() {
+
+		cpyClients := make(map[string]*api.MinerClient)
 		s.clientsMux.Lock()
-		for _, c := range *s.clients {
-			c.SendJob(b)
+		for k, v := range *s.clients {
+			cpyClients[k] = v
 		}
 		s.clientsMux.Unlock()
+
+		for _, c := range cpyClients {
+			c.SendJob(b)
+		}
 	}()
 }
 
