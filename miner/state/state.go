@@ -20,6 +20,7 @@ type MinerState struct {
 	logger    *govec.GoLog
 	tm        **TreeManager
 	clients   *map[string]*api.MinerClient
+	clientsMux *sync.Mutex
 	bc        **BlockCalculator
 	minerId   string
 	lAddr     string
@@ -71,6 +72,7 @@ func (s MinerState) GetAccountState(
 }
 
 func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
+	s.clientsMux.Lock()
 	for _, c := range *s.clients {
 		nd, ok, err := c.GetBlock(id)
 		if err != nil {
@@ -82,11 +84,13 @@ func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
 			return nd, true
 		}
 	}
+	s.clientsMux.Unlock()
 	return nil, false
 }
 
 func (s MinerState) GetRemoteRoots() []*crypto.Block {
 	blocks := make(map[string]*crypto.Block)
+	s.clientsMux.Lock()
 	for _, c := range *s.clients {
 		arr, err := c.GetRoots()
 		if err != nil {
@@ -98,6 +102,7 @@ func (s MinerState) GetRemoteRoots() []*crypto.Block {
 			blocks[h.Id()] = h
 		}
 	}
+	s.clientsMux.Unlock()
 
 	blockArr := make([]*crypto.Block, len(blocks))
 	i := 0
@@ -116,7 +121,6 @@ func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
 }
 
 func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
-	// todo notify to any listener
 	for e := s.listeners.Front(); e != nil; e = e.Next() {
 		go e.Value.(TreeListener).TreeEventHandler()
 	}
@@ -141,9 +145,11 @@ func (s MinerState) AddBlock(b *crypto.Block) {
 
 func (s MinerState) broadcastBlock(b *crypto.Block) {
 	go func() {
+		s.clientsMux.Lock()
 		for _, c := range *s.clients {
 			c.SendBlock(b)
 		}
+		s.clientsMux.Unlock()
 	}()
 }
 
@@ -161,9 +167,11 @@ func (s MinerState) AddJob(b crypto.BlockOp) {
 
 func (s MinerState) broadcastJob(b *crypto.BlockOp) {
 	go func() {
+		s.clientsMux.Lock()
 		for _, c := range *s.clients {
 			c.SendJob(b)
 		}
+		s.clientsMux.Unlock()
 	}()
 }
 
@@ -192,6 +200,7 @@ func (s MinerState) ActivateMiner(){
 }
 
 func (s MinerState) AddHost(h string) {
+	s.clientsMux.Lock()
 	if _, ok := (*s.clients)[h]; !ok {
 		conn, err := api.NewMinerClient(h, s.lAddr, s.logger)
 		if err == nil {
@@ -200,6 +209,7 @@ func (s MinerState) AddHost(h string) {
 			lg.Printf("Couldn't connect to %v due to %v", h, err)
 		}
 	}
+	s.clientsMux.Unlock()
 }
 
 func (s MinerState) AddTreeListener(listener TreeListener) {
@@ -223,6 +233,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	var blockCalcPtr *BlockCalculator
 	ms := MinerState{
 		clients:   &cls,
+		clientsMux: new(sync.Mutex),
 		minerId:   config.MinerId,
 		tm:        &treePtr,
 		bc:        &blockCalcPtr,
