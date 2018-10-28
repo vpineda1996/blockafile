@@ -136,13 +136,15 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 	s.listenersMux.Lock()
 	defer s.listenersMux.Unlock()
 	for e := s.listeners.Front(); e != nil; e = e.Next() {
-		go func() {
-			if succeed := e.Value.(TreeListener).TreeEventHandler(); succeed {
-				s.listenersMux.Lock()
-				s.listeners.Remove(e)
-				s.listenersMux.Unlock()
+		go func(node *list.Element) {
+			if node != nil && node.Value != nil {
+				if succeed := node.Value.(TreeListener).TreeEventHandler(); succeed {
+					s.listenersMux.Lock()
+					s.listeners.Remove(node)
+					s.listenersMux.Unlock()
+				}
 			}
-		}()
+		}(e)
 	}
 	s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
 }

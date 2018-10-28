@@ -158,13 +158,9 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 			NotifyChannel: make(chan int, 100),
 		}
 		miner.minerState.AddTreeListener(ccl)
-		for {
-			select {
-			case <- ccl.NotifyChannel:
-				return NO_ERROR
-			default:
-				// do nothing
-			}
+		select {
+		case <- ccl.NotifyChannel:
+			return NO_ERROR
 		}
 	}
 }
