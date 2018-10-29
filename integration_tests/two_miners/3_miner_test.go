@@ -22,7 +22,8 @@ var dificulty = 18
 
 var BobConfig = Config{
 	GenesisBlockHash:      GenesisBlockHash,
-	NumberOfZeros:         dificulty,
+	OpNumberOfZeros:       dificulty,
+	NoOpNumberOfZeros:     dificulty,
 	MinerId:               "bob",
 	Address:               BobAddress,
 	AppendFee:             1,
@@ -37,7 +38,8 @@ var BobConfig = Config{
 
 var ClaudiaConfig = Config{
 	GenesisBlockHash:      GenesisBlockHash,
-	NumberOfZeros:         dificulty,
+	OpNumberOfZeros:       dificulty,
+	NoOpNumberOfZeros:     dificulty,
 	MinerId:               "claudia",
 	Address:               ClaudiaAddress,
 	AppendFee:             1,
@@ -52,7 +54,8 @@ var ClaudiaConfig = Config{
 
 var AliceConfig = Config{
 	GenesisBlockHash:      GenesisBlockHash,
-	NumberOfZeros:         dificulty,
+	OpNumberOfZeros:       dificulty,
+	NoOpNumberOfZeros:     dificulty,
 	MinerId:               "alice",
 	Address:               AliceAddress,
 	AppendFee:             1,
@@ -118,7 +121,7 @@ func TestTwoMiners(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	fs, err = BobMiner.GetFilesystemState(BobConfig.ConfirmsPerFileCreate, BobConfig.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(1), fs.GetAll()["myFile"].NumberOfRecords)
+	equals(t, uint16(1), fs.GetAll()["myFile"].NumberOfRecords)
 
 	//
 	// ----------------------------------------------
@@ -135,7 +138,7 @@ func TestTwoMiners(t *testing.T) {
 	time.Sleep(time.Second * 10)
 	fs, err = ClaudiaMiner.GetFilesystemState(BobConfig.ConfirmsPerFileCreate, BobConfig.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(1), fs.GetAll()["myFile"].NumberOfRecords)
+	equals(t, uint16(1), fs.GetAll()["myFile"].NumberOfRecords)
 
 
 	//
@@ -155,11 +158,11 @@ func TestTwoMiners(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	fs, err = BobMiner.GetFilesystemState(BobConfig.ConfirmsPerFileCreate, BobConfig.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(2), fs.GetAll()["myFile"].NumberOfRecords)
+	equals(t, uint16(2), fs.GetAll()["myFile"].NumberOfRecords)
 
 	fs, err = ClaudiaMiner.GetFilesystemState(ClaudiaConfig.ConfirmsPerFileCreate, ClaudiaConfig.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(2), fs.GetAll()["myFile"].NumberOfRecords)
+	equals(t, uint16(2), fs.GetAll()["myFile"].NumberOfRecords)
 
 }
 

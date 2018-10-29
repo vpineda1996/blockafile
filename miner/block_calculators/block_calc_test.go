@@ -33,7 +33,7 @@ func (bg blkGenList) InLongestChain(id string) int {
 
 func (bg blkGenList) AddBlock(b *Block) {
 	fmt.Printf("adding blok %x\n", b.Hash())
-	if !b.Valid(numberOfZeros) {
+	if !b.Valid(numberOfZeros, numberOfZeros) {
 		panic("published invalid block")
 	}
 	switch b.Type {
@@ -62,12 +62,12 @@ func (bg blkGenList) GetMinerId() string {
 	return minerId
 }
 
-func (bg blkGenList) ValidateJobSet(bOps []*BlockOp) []*BlockOp {
+func (bg blkGenList) ValidateJobSet(bOps []*BlockOp) ([]*BlockOp, error, error) {
 	*bg.validate += 1
 	if len(bOps) == 0 {
-		return bOps
+		return bOps, nil, nil
 	}
-	return bg.blockOps
+	return bg.blockOps, nil, nil
 }
 
 const minerId = "william"
@@ -92,7 +92,7 @@ func TestBlockGeneration(t *testing.T) {
 			getHighestRoot: new(int),
 			validate:       new(int),
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
+		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros, 10, 100, 1)
 		bc.StartThreads()
 		time.Sleep(time.Second)
 		bc.ShutdownThreads()
@@ -110,7 +110,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
+		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros,10, 100, 1)
 		bc.StartThreads()
 		bc.AddJob(validBlockOps[0])
 		time.Sleep(time.Second)
@@ -128,7 +128,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
+		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros,10, 100, 1)
 		for i := 0; i < 21; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -148,7 +148,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
+		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros,10, 100, 1)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -169,7 +169,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 100, 1)
+		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros,10, 100, 1)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}
@@ -192,7 +192,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 500, 1)
+		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros,10, 500, 1)
 
 		for i := 0; i < 2; i++ {
 			bop := validBlockOps[0]
@@ -223,7 +223,7 @@ func TestBlockGeneration(t *testing.T) {
 			longestNum:      &lgInt,
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, 10, 500, 10)
+		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros,10, 500, 10)
 
 		for i := 0; i < 2; i++ {
 			bop := validBlockOps[0]

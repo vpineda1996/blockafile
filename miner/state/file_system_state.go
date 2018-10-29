@@ -5,6 +5,7 @@ import (
 	. "../../shared"
 	"../../shared/datastruct"
 	"errors"
+	"fmt"
 	"strconv"
 )
 
@@ -107,7 +108,7 @@ func evaluateFSBlockOps(
 		switch tx.Type {
 		case crypto.CreateFile:
 			if createOpsConfirmed {
-				if len(tx.Filename) > MaxFileName {
+				if len(tx.Filename) > MAX_FILENAME_LENGTH {
 					return errors.New("filename is to big for the given file")
 				}
 
@@ -124,12 +125,15 @@ func evaluateFSBlockOps(
 			}
 		case crypto.AppendFile:
 			if appendOpsConfirmed {
-				lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
 				if f, exists := fs[Filename(tx.Filename)]; exists {
+					if f.NumberOfRecords >= MAX_RECORD_COUNT {
+						return errors.New(fmt.Sprintf("file %s has reached maximum capacity", tx.Filename))
+					}
 					if tx.RecordNumber != f.NumberOfRecords {
 						return errors.New("append no " + strconv.Itoa(int(tx.RecordNumber)) +
 							" to file " + tx.Filename + " duplicated in chain, failing")
 					}
+					lg.Printf("Appending to file %v record no %v", tx.Filename, tx.RecordNumber)
 					f.NumberOfRecords += 1
 					f.Data = append(f.Data, FileData(tx.Data[:])...)
 				} else {

@@ -18,11 +18,13 @@ testFolder() {
 }
 
 testFolder crypto
+testFolder miner
 testFolder miner/api
-
 testFolder miner/state
 testFolder miner/block_calculators
 testFolder shared/datastruct
 testFolder integration_tests
 testFolder integration_tests/two_miners
+
+testFolder rfslib
 

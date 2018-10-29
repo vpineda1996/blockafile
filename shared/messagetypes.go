@@ -19,10 +19,10 @@ const (
 	FILE_DOES_NOT_EXIST
 	FILE_EXISTS
 	MAX_LEN_REACHED
+	NOT_ENOUGH_MONEY
+	APPEND_DUPLICATE
 	NO_ERROR = -1
 )
-
-const MaxFileName = 64
 
 type RFSClientRequest struct {
 	RequestType  RequestType

@@ -300,11 +300,11 @@ func TestAccountConfig(t *testing.T) {
 		copy(prevBlk[:], hd.Value.(crypto.BlockElement).Block.Hash())
 		records := make([]*crypto.BlockOp, 1)
 		record := crypto.BlockOp{
-			Type:         crypto.AppendFile,
-			Filename:     filenames[0],
-			Data:         datum[0],
-			Creator:      strconv.Itoa(1),
-			RecordNumber: uint32(0),
+			Type: crypto.AppendFile,
+			Filename: filenames[0],
+			Data: datum[0],
+			Creator: strconv.Itoa(1),
+			RecordNumber: uint16(0),
 		}
 		records[0] = &record
 		ee := crypto.BlockElement{

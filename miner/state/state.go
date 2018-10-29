@@ -5,22 +5,27 @@ import (
 	"../../shared"
 	"../api"
 	. "../block_calculators"
+	"container/list"
 	"crypto/md5"
 	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
 type MinerState struct {
 	// dont ask of the double ptr, its cancer but there is no other way
-	logger  *govec.GoLog
-	tm      **TreeManager
-	clients *map[string]*api.MinerClient
-	bc      **BlockCalculator
-	minerId string
-	lAddr string
+	logger    *govec.GoLog
+	tm        **TreeManager
+	clients   *map[string]*api.MinerClient
+	clientsMux *sync.Mutex
+	bc        **BlockCalculator
+	minerId   string
+	lAddr     string
+	listeners *list.List
+	listenersMux *sync.Mutex
 }
 
 type Config struct {
@@ -28,7 +33,8 @@ type Config struct {
 	CreateFee             Balance
 	OpReward              Balance
 	NoOpReward            Balance
-	NumberOfZeros         int
+	OpNumberOfZeros       int
+	NoOpNumberOfZeros	  int
 	Address               string
 	ConfirmsPerFileCreate int
 	ConfirmsPerFileAppend int
@@ -66,7 +72,15 @@ func (s MinerState) GetAccountState(
 }
 
 func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
-	for _, c := range *s.clients {
+	cpyClients := make(map[string]*api.MinerClient)
+
+	s.clientsMux.Lock()
+	for k, v := range *s.clients {
+		cpyClients[k] = v
+	}
+	s.clientsMux.Unlock()
+
+	for _, c := range cpyClients {
 		nd, ok, err := c.GetBlock(id)
 		if err != nil {
 			// todo vpineda prob remove that host from the host list
@@ -82,7 +96,15 @@ func (s MinerState) GetRemoteBlock(id string) (*crypto.Block, bool) {
 
 func (s MinerState) GetRemoteRoots() []*crypto.Block {
 	blocks := make(map[string]*crypto.Block)
-	for _, c := range *s.clients {
+	cpyClients := make(map[string]*api.MinerClient)
+
+	s.clientsMux.Lock()
+	for k, v := range *s.clients {
+		cpyClients[k] = v
+	}
+	s.clientsMux.Unlock()
+
+	for _, c := range cpyClients {
 		arr, err := c.GetRoots()
 		if err != nil {
 			// todo vpineda prob remove that host from the host list
@@ -111,7 +133,19 @@ func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
 }
 
 func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
-	// todo notify to any listener
+	s.listenersMux.Lock()
+	defer s.listenersMux.Unlock()
+	for e := s.listeners.Front(); e != nil; e = e.Next() {
+		go func(node *list.Element) {
+			if node != nil && node.Value != nil {
+				if succeed := node.Value.(TreeListener).TreeEventHandler(); succeed {
+					s.listenersMux.Lock()
+					s.listeners.Remove(node)
+					s.listenersMux.Unlock()
+				}
+			}
+		}(e)
+	}
 	s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
 }
 
@@ -133,7 +167,14 @@ func (s MinerState) AddBlock(b *crypto.Block) {
 
 func (s MinerState) broadcastBlock(b *crypto.Block) {
 	go func() {
-		for _, c := range *s.clients {
+		cpyClients := make(map[string]*api.MinerClient)
+		s.clientsMux.Lock()
+		for k, v := range *s.clients {
+			cpyClients[k] = v
+		}
+		s.clientsMux.Unlock()
+
+		for _, c := range cpyClients {
 			c.SendBlock(b)
 		}
 	}()
@@ -153,7 +194,15 @@ func (s MinerState) AddJob(b crypto.BlockOp) {
 
 func (s MinerState) broadcastJob(b *crypto.BlockOp) {
 	go func() {
-		for _, c := range *s.clients {
+
+		cpyClients := make(map[string]*api.MinerClient)
+		s.clientsMux.Lock()
+		for k, v := range *s.clients {
+			cpyClients[k] = v
+		}
+		s.clientsMux.Unlock()
+
+		for _, c := range cpyClients {
 			c.SendJob(b)
 		}
 	}()
@@ -167,7 +216,7 @@ func (s MinerState) GetMinerId() string {
 	return s.minerId
 }
 
-func (s MinerState) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
+func (s MinerState) ValidateJobSet(bOps []*crypto.BlockOp) ([]*crypto.BlockOp, error, error) {
 	return (*s.tm).ValidateJobSet(bOps)
 }
 
@@ -184,6 +233,7 @@ func (s MinerState) ActivateMiner(){
 }
 
 func (s MinerState) AddHost(h string) {
+	s.clientsMux.Lock()
 	if _, ok := (*s.clients)[h]; !ok {
 		conn, err := api.NewMinerClient(h, s.lAddr, s.logger)
 		if err == nil {
@@ -192,6 +242,13 @@ func (s MinerState) AddHost(h string) {
 			lg.Printf("Couldn't connect to %v due to %v", h, err)
 		}
 	}
+	s.clientsMux.Unlock()
+}
+
+func (s MinerState) AddTreeListener(listener TreeListener) {
+	s.listenersMux.Lock()
+	s.listeners.PushBack(listener)
+	s.listenersMux.Unlock()
 }
 
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
@@ -208,12 +265,15 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	var treePtr *TreeManager
 	var blockCalcPtr *BlockCalculator
 	ms := MinerState{
-		clients: &cls,
-		minerId: config.MinerId,
-		tm:      &treePtr,
-		bc:      &blockCalcPtr,
-		logger:  logger,
-		lAddr: config.Address,
+		clients:   &cls,
+		clientsMux: new(sync.Mutex),
+		minerId:   config.MinerId,
+		tm:        &treePtr,
+		bc:        &blockCalcPtr,
+		logger:    logger,
+		lAddr:     config.Address,
+		listeners: list.New(),
+		listenersMux: new(sync.Mutex),
 	}
 	treePtr = NewTreeManager(config, ms, ms)
 
@@ -223,7 +283,8 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	}
 
 	blockCalcPtr = NewBlockCalculator(ms,
-		config.NumberOfZeros,
+		config.OpNumberOfZeros,
+		config.NoOpNumberOfZeros,
 		config.OpPerBlock,
 		time.Duration(config.GenOpBlockTimeout),
 		calcThresh)

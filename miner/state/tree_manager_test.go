@@ -48,7 +48,7 @@ func buildTreeWithManager(treeDef treeBuilderTest, tm *TreeManager) error {
 					Filename:     filenames[test.addOrder[i+7]],
 					Data:         datum[test.addOrder[i+6]],
 					Creator:      strconv.Itoa(test.addOrder[i+5]),
-					RecordNumber: uint32(test.addOrder[i+9]) + uint32(u),
+					RecordNumber: uint16(test.addOrder[i+9]) + uint16(u),
 				}
 				records[u] = &record
 				counter += 1
@@ -62,7 +62,7 @@ func buildTreeWithManager(treeDef treeBuilderTest, tm *TreeManager) error {
 					Nonce:     12324,
 				},
 			}
-			ee.Block.FindNonce(numberOfZeros)
+			ee.Block.FindNonce(numberOfZeros, numberOfZeros)
 			var err error
 			err = tm.AddBlock(ee)
 			if err != nil {
@@ -105,7 +105,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 	})
 
@@ -120,7 +121,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -145,7 +147,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -174,7 +177,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -204,7 +208,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -244,7 +249,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -285,7 +291,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -322,7 +329,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -343,7 +351,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -366,7 +375,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -389,7 +399,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -412,7 +423,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -435,7 +447,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -468,7 +481,8 @@ func TestSimpleTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -485,7 +499,7 @@ func TestSimpleTreeManager(t *testing.T) {
 		equals(t, 1, len(fs))
 		equals(t, "1", fs["a"].Creator)
 		equals(t, datum[0][:], []byte(fs["a"].Data)[:crypto.DataBlockSize])
-		equals(t, uint32(5), fs["a"].NumberOfRecords)
+		equals(t, uint16(5), fs["a"].NumberOfRecords)
 	})
 }
 
@@ -508,7 +522,8 @@ func TestValidTnxTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -549,7 +564,8 @@ func TestValidTnxTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -596,7 +612,8 @@ func TestValidTnxTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -650,7 +667,8 @@ func TestValidTnxTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -671,7 +689,7 @@ func TestValidTnxTreeManager(t *testing.T) {
 
 		equals(t, "2", fs["c"].Creator)
 
-		equals(t, uint32(0), fs["c"].NumberOfRecords)
+		equals(t, uint16(0), fs["c"].NumberOfRecords)
 
 		bkState, err := NewAccountsState(1, createFee, opReward, noOpReward, tree.GetLongestChain())
 		if err != nil {
@@ -706,7 +724,8 @@ func TestValidTnxTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -744,7 +763,8 @@ func TestValidTnxTreeManager(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -786,7 +806,8 @@ func TestValidAccountState(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      500,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -811,7 +832,8 @@ func TestValidAccountState(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1000,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -836,7 +858,8 @@ func TestValidAccountState(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -859,7 +882,8 @@ func TestValidAccountState(t *testing.T) {
 			CreateFee:     1000,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, fkNodeRetriv)
 		err := buildTreeWithManager(treeDef, tree)
 
@@ -915,7 +939,7 @@ func TestBlockRetrieval(t *testing.T) {
 			},
 		}
 
-		parent.Block.FindNonce(numberOfZeros)
+		parent.Block.FindNonce(numberOfZeros, numberOfZeros)
 		parentHs := [md5.Size]byte{}
 		copy(parentHs[:], parent.Block.Hash())
 
@@ -934,7 +958,7 @@ func TestBlockRetrieval(t *testing.T) {
 				Nonce: 12324,
 			},
 		}
-		head.Block.FindNonce(numberOfZeros)
+		head.Block.FindNonce(numberOfZeros, numberOfZeros)
 
 		var tNodeRetrivStruct = tNodeRetriever{
 			block:     parent.Block,
@@ -947,7 +971,8 @@ func TestBlockRetrieval(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
 		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
@@ -996,7 +1021,7 @@ func TestBlockRetrieval(t *testing.T) {
 				Nonce: 12324,
 			},
 		}
-		head.Block.FindNonce(numberOfZeros)
+		head.Block.FindNonce(numberOfZeros, numberOfZeros)
 
 		var tNodeRetrivStruct = tNodeRetriever{
 			block:     parent.Block,
@@ -1009,7 +1034,8 @@ func TestBlockRetrieval(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
 		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
@@ -1039,7 +1065,7 @@ func TestBlockRetrieval(t *testing.T) {
 				Nonce:     12324,
 			},
 		}
-		parent.Block.FindNonce(numberOfZeros)
+		parent.Block.FindNonce(numberOfZeros, numberOfZeros)
 		parentHs := [md5.Size]byte{}
 		copy(parentHs[:], parent.Block.Hash())
 
@@ -1058,7 +1084,7 @@ func TestBlockRetrieval(t *testing.T) {
 				Nonce: 12324,
 			},
 		}
-		head.Block.FindNonce(numberOfZeros)
+		head.Block.FindNonce(numberOfZeros, numberOfZeros)
 
 		var tNodeRetrivStruct = tNodeRetriever{
 			block:     parent.Block,
@@ -1071,7 +1097,8 @@ func TestBlockRetrieval(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
 		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
@@ -1099,7 +1126,7 @@ func TestBlockRetrieval(t *testing.T) {
 			},
 		}
 
-		parent.Block.FindNonce(numberOfZeros)
+		parent.Block.FindNonce(numberOfZeros, numberOfZeros)
 		parentHs := [md5.Size]byte{}
 		copy(parentHs[:], parent.Block.Hash())
 
@@ -1119,7 +1146,7 @@ func TestBlockRetrieval(t *testing.T) {
 			},
 		}
 
-		head.Block.FindNonce(numberOfZeros)
+		head.Block.FindNonce(numberOfZeros, numberOfZeros)
 		head2Parent := [md5.Size]byte{}
 		copy(head2Parent[:], head.Block.Hash())
 
@@ -1138,7 +1165,7 @@ func TestBlockRetrieval(t *testing.T) {
 				Nonce: 12324,
 			},
 		}
-		head2.Block.FindNonce(numberOfZeros)
+		head2.Block.FindNonce(numberOfZeros, numberOfZeros)
 
 		var tNodeRetrivStruct = tNodeRetriever{
 			block:     parent.Block,
@@ -1152,7 +1179,8 @@ func TestBlockRetrieval(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
 		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
@@ -1183,7 +1211,7 @@ func TestBlockRetrieval(t *testing.T) {
 			},
 		}
 
-		parent.Block.FindNonce(numberOfZeros)
+		parent.Block.FindNonce(numberOfZeros, numberOfZeros)
 		parentHs := [md5.Size]byte{}
 		copy(parentHs[:], parent.Block.Hash())
 
@@ -1203,7 +1231,7 @@ func TestBlockRetrieval(t *testing.T) {
 			},
 		}
 
-		head.Block.FindNonce(numberOfZeros)
+		head.Block.FindNonce(numberOfZeros, numberOfZeros)
 		head2Parent := [md5.Size]byte{}
 		copy(head2Parent[:], head.Block.Hash())
 
@@ -1222,7 +1250,7 @@ func TestBlockRetrieval(t *testing.T) {
 				Nonce: 12324,
 			},
 		}
-		head2.Block.FindNonce(numberOfZeros)
+		head2.Block.FindNonce(numberOfZeros, numberOfZeros)
 
 		var tNodeRetrivStruct = tNodeRetriever{
 			block:     parent.Block,
@@ -1236,7 +1264,8 @@ func TestBlockRetrieval(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, fkNodeRetriv)
 		tree.StartThreads()
 		time.Sleep(time.Millisecond * 100)
@@ -1292,7 +1321,8 @@ func TestOnBlockListeners(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, tNodeRetrivStruct, ob)
 		tm.StartThreads()
 		time.Sleep(time.Millisecond * 100)
@@ -1337,7 +1367,8 @@ func TestOnBlockListeners(t *testing.T) {
 			CreateFee:     1,
 			OpReward:      1,
 			NoOpReward:    1,
-			NumberOfZeros: numberOfZeros,
+			OpNumberOfZeros: numberOfZeros,
+			NoOpNumberOfZeros: numberOfZeros,
 		}, fkNodeRetriv, ob)
 		err := buildTreeWithManager(treeDef, tree)
 

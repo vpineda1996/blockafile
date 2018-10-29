@@ -56,7 +56,7 @@ func buildFSTree(treeDef treeBuilderTest) *MRootTree {
 					Filename:     filenames[test.addOrder[i+7]],
 					Data:         datum[test.addOrder[i+6]],
 					Creator:      strconv.Itoa(test.addOrder[i+5]),
-					RecordNumber: uint32(test.addOrder[i+9]),
+					RecordNumber: uint16(test.addOrder[i+9]),
 				}
 				records[u] = &record
 				counter += 1
@@ -532,8 +532,8 @@ func TestConfirmationTree(t *testing.T) {
 		equals(t, "2", fs["b"].Creator)
 		equals(t, (*FileInfo)(nil), fs["c"])
 
-		equals(t, uint32(0), fs["a"].NumberOfRecords)
-		equals(t, uint32(0), fs["b"].NumberOfRecords)
+		equals(t, uint16(0), fs["a"].NumberOfRecords)
+		equals(t, uint16(0), fs["b"].NumberOfRecords)
 
 		// Add one more node
 		AddNoOpBlock(tree)
@@ -544,7 +544,7 @@ func TestConfirmationTree(t *testing.T) {
 		fs = fsState.GetAll()
 		equals(t, 3, len(fs))
 		equals(t, "1", fs["c"].Creator)
-		equals(t, uint32(0), fs["c"].NumberOfRecords)
+		equals(t, uint16(0), fs["c"].NumberOfRecords)
 		equals(t, make([]byte, 0, crypto.DataBlockSize), []byte(fs["c"].Data))
 	})
 
@@ -576,9 +576,9 @@ func TestConfirmationTree(t *testing.T) {
 		equals(t, "2", fs["b"].Creator)
 		equals(t, "1", fs["c"].Creator)
 
-		equals(t, uint32(0), fs["a"].NumberOfRecords)
-		equals(t, uint32(0), fs["b"].NumberOfRecords)
-		equals(t, uint32(0), fs["c"].NumberOfRecords)
+		equals(t, uint16(0), fs["a"].NumberOfRecords)
+		equals(t, uint16(0), fs["b"].NumberOfRecords)
+		equals(t, uint16(0), fs["c"].NumberOfRecords)
 
 		equals(t, make([]byte, 0, crypto.DataBlockSize), []byte(fs["c"].Data))
 
@@ -589,7 +589,7 @@ func TestConfirmationTree(t *testing.T) {
 			panic(err)
 		}
 		fs = fsState.GetAll()
-		equals(t, uint32(1), fs["c"].NumberOfRecords)
+		equals(t, uint16(1), fs["c"].NumberOfRecords)
 		equals(t, datum[0][:], []byte(fs["c"].Data)[:crypto.DataBlockSize])
 
 		// Add ten more nodes
@@ -601,7 +601,7 @@ func TestConfirmationTree(t *testing.T) {
 			panic(err)
 		}
 		fs = fsState.GetAll()
-		equals(t, uint32(2), fs["c"].NumberOfRecords)
+		equals(t, uint16(2), fs["c"].NumberOfRecords)
 		equals(t, datum[1][:], []byte(fs["c"].Data)[crypto.DataBlockSize:])
 	})
 

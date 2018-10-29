@@ -91,7 +91,7 @@ func TestNonceFinding(t *testing.T) {
 				PrevBlock: prevBlock,
 				Records:   records,
 			}
-			bk.FindNonce(test.zeros)
+			bk.FindNonce(test.zeros, test.zeros)
 			h := bk.Hash()
 			hSize := len(h)
 			for i, msk := range test.mask {
@@ -132,6 +132,73 @@ func TestEncoding(t *testing.T) {
 		btck := be.New(bytes.NewReader(enc))
 
 		equals(t, be.Id(), btck.Id())
+	})
+}
+
+func TestZerosConfigNonceFinding(t *testing.T) {
+	record := BlockOp{
+		Type:     CreateFile,
+		Creator:  "",
+		Data:     BlockOpData{20},
+		Filename: "",
+	}
+	records := make([]*BlockOp, 1)
+	records[0] = &record
+	prevBlock := [md5.Size]byte{20, 32, 1}
+	minerId := "asdasf122"
+	nonce := uint32(232412)
+
+	t.Run("regular block", func(t *testing.T) {
+		bk := Block{
+			Type:      RegularBlock,
+			Nonce:     nonce,
+			MinerId:   minerId,
+			PrevBlock: prevBlock,
+			Records:   records,
+		}
+		bk.FindNonce(8, 1)
+		h := bk.Hash()
+		hSize := len(h)
+		mask := []byte{0xFF}
+		for i, msk := range mask {
+			if h[hSize-1-i]&msk != 0 {
+				t.Fail()
+			}
+		}
+	})
+	t.Run("genesis block", func(t *testing.T) {
+		bk := Block{
+			Type:      GenesisBlock,
+			Nonce:     nonce,
+			MinerId:   minerId,
+			PrevBlock: [md5.Size]byte{1, 2, 3, 4, 5},
+		}
+		bk.FindNonce(8, 1)
+		h := bk.Hash()
+		hSize := len(h)
+		mask := []byte{0xFF}
+		for i, msk := range mask {
+			if h[hSize-1-i]&msk != 0 {
+				t.Fail()
+			}
+		}
+	})
+	t.Run("noop block", func(t *testing.T) {
+		bk := Block{
+			Type:      NoOpBlock,
+			Nonce:     nonce,
+			MinerId:   minerId,
+			PrevBlock: [md5.Size]byte{1, 2, 3, 4, 5},
+		}
+		bk.FindNonce(1, 8)
+		h := bk.Hash()
+		hSize := len(h)
+		mask := []byte{0xFF}
+		for i, msk := range mask {
+			if h[hSize-1-i]&msk != 0 {
+				t.Fail()
+			}
+		}
 	})
 }
 

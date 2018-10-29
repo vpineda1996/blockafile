@@ -118,7 +118,7 @@ func (t *TreeManager) GetLongestChain() *datastruct.Node {
 	return t.mTree.GetLongestChain()
 }
 
-func (t *TreeManager) ValidateJobSet(bOps []*crypto.BlockOp) []*crypto.BlockOp {
+func (t *TreeManager) ValidateJobSet(bOps []*crypto.BlockOp) ([]*crypto.BlockOp, error, error) {
 	return t.mTree.ValidateJobSet(bOps)
 }
 
@@ -256,7 +256,7 @@ func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *Tree
 		mTree: BlockChainTree{
 			mTree:     tree,
 			tcl:       tcl,
-			mtx: new(sync.Mutex),
+			mtx:       new(sync.Mutex),
 			validator: NewBlockChainValidator(cnf, tree),
 		},
 		findBlockQueue:  &datastruct.Queue{},
@@ -270,7 +270,7 @@ type BlockChainTree struct {
 	mTree     *datastruct.MRootTree
 	validator *BlockChainValidator
 	tcl       TreeChangeListener
-	mtx *sync.Mutex
+	mtx       *sync.Mutex
 }
 
 func (b BlockChainTree) Find(id string) (*datastruct.Node, bool) {
@@ -290,7 +290,7 @@ func (b BlockChainTree) Add(block crypto.BlockElement) (*datastruct.Node, error)
 	}
 
 	nd, err := b.mTree.PrependElement(block, root)
-	lg.Printf("Added block %v\n", block.Id())
+	lg.Printf("Added block of type %v: %v mined by %v\n", block.Block.Type, block.Id(), block.Block.MinerId)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +335,7 @@ func (b BlockChainTree) GetRoots() []*datastruct.Node {
 	return b.mTree.GetRoots()
 }
 
-func (b BlockChainTree) ValidateJobSet(ops []*crypto.BlockOp) []*crypto.BlockOp {
+func (b BlockChainTree) ValidateJobSet(ops []*crypto.BlockOp) ([]*crypto.BlockOp, error, error) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	return b.validator.ValidateJobSet(ops, b.mTree.GetLongestChain())

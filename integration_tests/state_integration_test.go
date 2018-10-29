@@ -15,7 +15,8 @@ import (
 
 var config = Config{
 	GenesisBlockHash:      [md5.Size]byte{1, 2, 3, 4, 5},
-	NumberOfZeros:         16,
+	OpNumberOfZeros:       16,
+	NoOpNumberOfZeros:     16,
 	MinerId:               "1",
 	Address:               "localhost:8085",
 	AppendFee:             1,
@@ -85,7 +86,7 @@ func TestMinerState(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(2), fs.GetAll()["myFile"].NumberOfRecords)
+	equals(t, uint16(2), fs.GetAll()["myFile"].NumberOfRecords)
 
 	// ----------------------------------------------
 	// handles jobs that are flawed -- create file
@@ -102,7 +103,7 @@ func TestMinerState(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(2), fs.GetAll()["myFile"].NumberOfRecords)
+	equals(t, uint16(2), fs.GetAll()["myFile"].NumberOfRecords)
 
 	// ----------------------------------------------
 	// handles jobs that are flawed -- append
@@ -119,7 +120,7 @@ func TestMinerState(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(2), fs.GetAll()["myFile"].NumberOfRecords)
+	equals(t, uint16(2), fs.GetAll()["myFile"].NumberOfRecords)
 
 	// -----------------------------------------------
 	// respects order of ops inside block -- create and append
@@ -146,7 +147,7 @@ func TestMinerState(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(1), fs.GetAll()["myFile2"].NumberOfRecords)
+	equals(t, uint16(1), fs.GetAll()["myFile2"].NumberOfRecords)
 
 	// -----------------------------------------------
 	// respects order of ops inside block -- create and 3x append and ignore second creation
@@ -200,7 +201,7 @@ func TestMinerState(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(3), fs.GetAll()["myFile2"].NumberOfRecords)
+	equals(t, uint16(3), fs.GetAll()["myFile2"].NumberOfRecords)
 
 	// -----------------------------------------------
 	// money validation fixes errors and deletes necessary
@@ -291,7 +292,7 @@ func TestMinerState(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	fs, err = s.GetFilesystemState(config.ConfirmsPerFileCreate, config.ConfirmsPerFileAppend)
 	ok(t, err)
-	equals(t, uint32(1), fs.GetAll()["myFile2"].NumberOfRecords)
+	equals(t, uint16(1), fs.GetAll()["myFile2"].NumberOfRecords)
 
 }
 
