@@ -154,11 +154,18 @@ func Initialize(localAddr string, minerAddr string) (rfs RFS, err error) {
 		return nil, err
 	}
 
+
 	conn, err := net.DialTCP("tcp", laddr, maddr)
 	if err != nil {
-		return nil, err
+		laddr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			return nil, err
+		}
+		conn, err = net.DialTCP("tcp", laddr, maddr)
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	// Initialize failure detector
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
@@ -179,6 +186,7 @@ func Initialize(localAddr string, minerAddr string) (rfs RFS, err error) {
 
 // For testing purposes
 func TearDown() (err error) {
+	fmt.Print("closing socket")
 	err = rfsInstance.tcpConn.Close()
 	rfsInstance = nil
 	return
