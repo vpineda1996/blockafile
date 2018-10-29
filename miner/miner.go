@@ -267,7 +267,7 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 		for {
 			select {
 			case <- acl.NotifyChannel:
-				return 0, NO_ERROR
+				return job.RecordNumber, NO_ERROR
 			default:
 				// do nothing
 			}
