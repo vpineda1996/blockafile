@@ -157,7 +157,7 @@ func Initialize(localAddr string, minerAddr string) (rfs RFS, err error) {
 
 	conn, err := net.DialTCP("tcp", laddr, maddr)
 	if err != nil {
-		laddr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+		laddr, err := net.ResolveTCPAddr("tcp", ":0")
 		if err != nil {
 			return nil, err
 		}
