@@ -77,7 +77,7 @@ func buildTreeWithManager(treeDef treeBuilderTest, tm *TreeManager) error {
 	return nil
 }
 
-const numberOfZeros = 8
+const numberOfZeros = 2
 
 type fakeNodeRetrievier struct {
 }

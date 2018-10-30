@@ -82,7 +82,7 @@ var validBlockOps = []*BlockOp{
 	},
 }
 
-const numberOfZeros = 16
+const numberOfZeros = 4
 
 func TestBlockGeneration(t *testing.T) {
 	t.Run("generates no-op blocks", func(t *testing.T) {

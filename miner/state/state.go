@@ -161,6 +161,7 @@ func (s MinerState) AddBlock(b *crypto.Block) {
 		// bkst block
 		s.broadcastBlock(b)
 	} else {
+		lg.Printf("WARN: Recieved block %v but rejected", b.Id())
 		s.logger.LogLocalEvent(fmt.Sprintf(" Recieved block %v but I have it", b.Id()), WARN)
 	}
 }
@@ -174,7 +175,8 @@ func (s MinerState) broadcastBlock(b *crypto.Block) {
 		}
 		s.clientsMux.Unlock()
 
-		for _, c := range cpyClients {
+		for k, c := range cpyClients {
+			lg.Printf("Sending block to: %v", k)
 			c.SendBlock(b)
 		}
 	}()
@@ -187,6 +189,7 @@ func (s MinerState) AddJob(b crypto.BlockOp) {
 		(*s.bc).AddJob(&b)
 		s.broadcastJob(&b)
 	} else {
+		lg.Printf("WARN: Recieved job for file %v but rejected", b.Filename)
 		s.logger.LogLocalEvent(fmt.Sprintf(" Recieved job for file %v but I have it", b.Filename), WARN)
 	}
 
@@ -202,7 +205,8 @@ func (s MinerState) broadcastJob(b *crypto.BlockOp) {
 		}
 		s.clientsMux.Unlock()
 
-		for _, c := range cpyClients {
+		for k, c := range cpyClients {
+			lg.Printf("Sending job to: %v", k)
 			c.SendJob(b)
 		}
 	}()
