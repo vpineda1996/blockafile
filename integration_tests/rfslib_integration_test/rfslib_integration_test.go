@@ -1,15 +1,15 @@
 package rfslib_integration_test
 
 import (
+	"../../fdlib"
+	"../../miner/instance"
+	"../../rfslib"
 	"fmt"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"sync"
 	"testing"
-	"../../miner/instance"
-	"../../rfslib"
-	"../../fdlib"
 	"time"
 )
 
@@ -38,8 +38,9 @@ func TestRFSLibMinerIntegration(t *testing.T) {
 	ok(t, err)
 
 	// Append record
+	recordContents := []byte("new record")
 	record := new(rfslib.Record)
-	copy(record[:], []byte("new record"))
+	copy(record[:], recordContents)
 	recNum, err := rfs.AppendRec(SAMPLE_FNAME, record)
 	ok(t, err)
 	equals(t, uint16(0), recNum)
@@ -59,6 +60,7 @@ func TestRFSLibMinerIntegration(t *testing.T) {
 	index := uint16(0)
 	err = rfs.ReadRec(SAMPLE_FNAME, index, record)
 	ok(t, err)
+	equals(t, recordContents, record[:len(recordContents)])
 
 	// delete record
 	err = rfs.DeleteFile(SAMPLE_FNAME)
@@ -68,7 +70,6 @@ func TestRFSLibMinerIntegration(t *testing.T) {
 	fnames, err = rfs.ListFiles()
 	ok(t, err)
 	equals(t, 0, len(fnames))
-
 }
 
 // Taken from https://github.com/benbjohnson/testing
