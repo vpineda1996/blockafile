@@ -1,4 +1,4 @@
-package main
+package instance
 
 import (
 	"testing"
@@ -6,22 +6,22 @@ import (
 
 func TestConfig(t *testing.T) {
 	t.Run("non-existent file", func(t *testing.T) {
-		_, err := ParseConfig("../testfiles/config_nope.json")
+		_, err := ParseConfig("../../testfiles/config_nope.json")
 		assert(t, err != nil, "should fail on parsing non-existent file")
 	})
 
 	t.Run("badly-formed file", func(t *testing.T) {
-		_, err := ParseConfig("../testfiles/config_bad.json")
+		_, err := ParseConfig("../../testfiles/config_bad.json")
 		assert(t, err != nil, "should fail on parsing badly-formed file")
 	})
 
 	t.Run("well-formed file with fields missing", func(t *testing.T) {
-		_, err := ParseConfig("../testfiles/config_missing.json")
+		_, err := ParseConfig("../../testfiles/config_missing.json")
 		assert(t, err == nil, "should parse well-formed config file with some fields renamed/missing")
 	})
 
 	t.Run("well-formed file with all fields", func(t *testing.T) {
-		mc, err := ParseConfig("../testfiles/config_good.json")
+		mc, err := ParseConfig("../../testfiles/config_good.json")
 		assert(t, err == nil, "should parse well-formed config file")
 		equals(t, uint8(8), mc.MinedCoinsPerOpBlock)
 		equals(t, uint8(4), mc.MinedCoinsPerNoOpBlock)

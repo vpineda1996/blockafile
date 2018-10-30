@@ -9,6 +9,7 @@ const (
 	TOTAL_RECS
 	READ_REC
 	APPEND_REC
+	DELETE_FILE
 )
 
 // Failure types

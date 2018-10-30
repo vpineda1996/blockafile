@@ -148,7 +148,7 @@ func TestBlockGeneration(t *testing.T) {
 			validate:        new(int),
 			blockOps:        validBlockOps,
 		}
-		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros,10, 100, 1)
+		bc := NewBlockCalculator(listener, numberOfZeros, numberOfZeros,10, 100, -1)
 		for i := 0; i < 300; i++ {
 			bc.AddJob(validBlockOps[0])
 		}

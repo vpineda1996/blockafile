@@ -20,9 +20,19 @@ type BlockChainValidator struct {
 	generatingNodeId string
 }
 
+type BlockChainValidatorError interface{
+	GetErrorCode() FailureType
+	Error() string
+}
+
 type FileAlreadyExistsValidationError struct {
 	Filename string
 }
+
+func (e FileAlreadyExistsValidationError) GetErrorCode() FailureType {
+	return FILE_EXISTS
+}
+
 func (e FileAlreadyExistsValidationError) Error() string {
 	return "file " + e.Filename + " is duplicated, not a valid transaction"
 }
@@ -30,6 +40,11 @@ func (e FileAlreadyExistsValidationError) Error() string {
 type FileDoesNotExistValidationError struct {
 	Filename string
 }
+
+func (e FileDoesNotExistValidationError) GetErrorCode() FailureType {
+	return FILE_DOES_NOT_EXIST
+}
+
 func (e FileDoesNotExistValidationError) Error() string {
 	return "file " + e.Filename + " doesn't exist but tried to append"
 }
@@ -38,6 +53,11 @@ type AppendDuplicateValidationError struct {
 	RecordNumber int
 	FileName string
 }
+
+func (e AppendDuplicateValidationError) GetErrorCode() FailureType {
+	return APPEND_DUPLICATE
+}
+
 func (e AppendDuplicateValidationError) Error() string {
 	return "append no " + strconv.Itoa(e.RecordNumber) +
 		" to file " + e.FileName + " duplicated in chain, failing"
@@ -46,6 +66,11 @@ func (e AppendDuplicateValidationError) Error() string {
 type MaxLengthReachedValidationError struct {
 	FileName string
 }
+
+func (e MaxLengthReachedValidationError) GetErrorCode() FailureType {
+	return MAX_LEN_REACHED
+}
+
 func (e MaxLengthReachedValidationError) Error() string {
 	return fmt.Sprintf("file %s reached maximum length", e.FileName)
 }
@@ -53,6 +78,11 @@ func (e MaxLengthReachedValidationError) Error() string {
 type BadFileNameValidationError struct {
 	FileName string
 }
+
+func (e BadFileNameValidationError) GetErrorCode() FailureType {
+	return BAD_FILENAME
+}
+
 func (e BadFileNameValidationError) Error() string {
 	return fmt.Sprintf("file %s has filename that is too long", e.FileName)
 }
@@ -62,18 +92,43 @@ type NotEnoughMoneyValidationError struct {
 	ActualMoney int
 	NeededMoney int
 }
+
+func (e NotEnoughMoneyValidationError) GetErrorCode() FailureType {
+	return NOT_ENOUGH_MONEY
+}
+
 func (e NotEnoughMoneyValidationError) Error() string {
 	return "balance for account " + e.Account + " is not enough, it has " + fmt.Sprintf("%v", e.ActualMoney) +
 		" but it needs " + fmt.Sprintf("%v", e.NeededMoney)
 }
 
+type UnspecifiedValidationError string
+
+func (e UnspecifiedValidationError) GetErrorCode() FailureType {
+	return NO_ERROR
+}
+
+func (e UnspecifiedValidationError) Error() string {
+	return string(e)
+}
+
 type CompositeError struct {
-	Prev error
-	Current error
+	Prev BlockChainValidatorError
+	Current BlockChainValidatorError
 }
 
 func (e CompositeError) Error() string {
 	return fmt.Sprintln(e.Prev) + fmt.Sprintln(e.Current)
+}
+
+func (e CompositeError) GetErrorCode() FailureType {
+	if e.Current != nil {
+		return e.Current.GetErrorCode()
+	}
+	if e.Prev != nil {
+		return e.Prev.GetErrorCode()
+	}
+	return NO_ERROR
 }
 
 // Given a block, it will return whether that block is valid or invalid
@@ -205,7 +260,7 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 		res map[Filename]*FileInfo) ([]*crypto.BlockOp, map[string]bool, error) {
 	validOps := make([]*crypto.BlockOp, 0, len(bcs))
 	deletedFiles := make(map[string]bool)
-	var err error = nil
+	var err BlockChainValidatorError = nil
 	fs := bcv.lastFilesystemState.GetAll()
 	for _, tx := range bcs {
 		switch tx.Type {
@@ -320,10 +375,9 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 		case crypto.DeleteFile:
 			// super easy, when we delete a file most of the hard work will be done by create, update and append
 			if _, deleted := deletedFiles[tx.Filename]; deleted {
-				// todo add error types for this once there is client support for this
 				err = CompositeError {
 					err,
-					errors.New("cannot delete a file that has already been deleted")}
+					FileDoesNotExistValidationError{tx.Filename}}
 				continue
 			}
 			if _, inRes := res[Filename(tx.Filename)]; !inRes {
@@ -331,7 +385,7 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 					// todo add error types for this once there is client support for this
 					err = CompositeError {
 						err,
-						errors.New("cannot delete a file that doesn't exist")}
+						FileDoesNotExistValidationError{tx.Filename}}
 					continue
 				}
 			}
@@ -339,9 +393,10 @@ func (bcv *BlockChainValidator) validateNewFSBlockOps(bcs []*crypto.BlockOp,
 			validOps = append(validOps, tx)
 			deletedFiles[tx.Filename] = true
 		default:
+
 			err = CompositeError {
 				err,
-				errors.New("invalid fs op")}
+				UnspecifiedValidationError("invalid fs op")}
 			continue
 		}
 	}
@@ -369,7 +424,7 @@ func (bcv *BlockChainValidator) validateNewAccountState(b crypto.BlockElement, p
 func (bcv *BlockChainValidator) validateNewAccountBlockOps(bcs []*crypto.BlockOp, parentBlock string, res map[Account]Balance) ([]*crypto.BlockOp, error) {
 	accs := bcv.lastStateAccount
 	validOps := make([]*crypto.BlockOp, 0, len(bcs))
-	var err error = nil
+	var err BlockChainValidatorError = nil
 	for idx, tx := range bcs {
 		act := Account(tx.Creator)
 		var txFee Balance
@@ -385,7 +440,7 @@ func (bcv *BlockChainValidator) validateNewAccountBlockOps(bcs []*crypto.BlockOp
 				// todo add error types for this once there is client support for this
 				err = CompositeError{
 					err,
-					errors.New("coudn't find parent block to calculate refund")}
+					UnspecifiedValidationError("coudn't find parent block to calculate refund")}
 				continue
 			}
 

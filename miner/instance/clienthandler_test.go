@@ -1,7 +1,7 @@
-package main
+package instance
 
 import (
-	. "../shared"
+	. "../../shared"
 	"bytes"
 	"encoding/gob"
 	"fmt"
@@ -27,6 +27,10 @@ func init() {
 }
 
 type MockMiner struct {
+}
+
+func (m MockMiner) DeleteRecHandler(fname string) (errorType FailureType) {
+	return NO_ERROR
 }
 
 func (m MockMiner) CreateFileHandler(fname string) (errorType FailureType) {
@@ -135,6 +139,18 @@ func TestServiceClientRequest(t *testing.T) {
 		connClient, err := net.DialTCP("tcp", caddr, maddr)
 		ok(t, err)
 		validRequest := RFSClientRequest{RequestType: CREATE_FILE, FileName: "FileName"}
+		sendRequest(validRequest, connClient, t)
+		_, timeout := getResponseOrTimeout(connClient, t)
+		assert(t, !timeout, "should get response for create file request")
+	})
+
+	t.Run("should respond to delete file request", func(t *testing.T) {
+		clientAddr := fmt.Sprintf("127.0.0.1:%v", generateNextPort())
+		caddr, _ := net.ResolveTCPAddr("tcp", clientAddr)
+		serviceError = nil
+		connClient, err := net.DialTCP("tcp", caddr, maddr)
+		ok(t, err)
+		validRequest := RFSClientRequest{RequestType: DELETE_FILE, FileName: "FileName"}
 		sendRequest(validRequest, connClient, t)
 		_, timeout := getResponseOrTimeout(connClient, t)
 		assert(t, !timeout, "should get response for create file request")

@@ -121,6 +121,13 @@ type RFS interface {
 	// - FileDoesNotExistError
 	// - FileMaxLenReachedError
 	AppendRec(fname string, record *Record) (recordNum uint16, err error)
+
+	// Deletes the file and records associated with the filename fname
+	//
+	// Can return the following errors:
+	// - DisconnectedError
+	// - FileDoesNotExistError
+	DeleteFile(fname string) (err error)
 }
 
 // Logger
@@ -186,7 +193,6 @@ func Initialize(localAddr string, minerAddr string) (rfs RFS, err error) {
 
 // For testing purposes
 func TearDown() (err error) {
-	fmt.Print("closing socket")
 	err = rfsInstance.tcpConn.Close()
 	rfsInstance = nil
 	return
@@ -204,6 +210,26 @@ type RFSInstance struct {
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // RFS API Implementation
+
+func (rfs RFSInstance) DeleteFile(fname string) (err error) {
+	clientRequest := shared.RFSClientRequest{RequestType: shared.DELETE_FILE, FileName: fname}
+	err = rfs.sendClientRequest(clientRequest)
+	if err != nil {
+		return err
+	}
+
+	// Wait for response from miner
+	minerResponse, err := rfs.getMinerResponse()
+	if err != nil {
+		return err
+	}
+
+	// Generate the proper error to return to the client
+	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
+
+	lg.Printf("Miner responded to delete file request: %v\n", minerResponse)
+	return responseErr
+}
 
 func (rfs RFSInstance) CreateFile(fname string) (err error) {
 	// Encode and send the client request
@@ -323,11 +349,9 @@ func (rfs RFSInstance) sendClientRequest(clientRequest shared.RFSClientRequest) 
 			lg.Println("retry count exceeded for sendClientRequest()")
 			return DisconnectedError(rfs.minerAddr)
 		}
-		select {
-		case <-rfs.failureNotifyChannel:
-			// Miner node failed
-			return DisconnectedError(rfs.minerAddr)
-		default:
+
+		done := make(chan bool, 1)
+		go func() {
 			var buf bytes.Buffer
 			enc := gob.NewEncoder(&buf)
 			err := enc.Encode(clientRequest)
@@ -338,15 +362,27 @@ func (rfs RFSInstance) sendClientRequest(clientRequest shared.RFSClientRequest) 
 
 			// Send to miner
 			lg.Println("Sending client request to miner")
-			rfs.tcpConn.SetWriteDeadline(time.Time{})
+			rfs.tcpConn.SetWriteDeadline(time.Now().Add(time.Minute))
 			_, err = rfs.tcpConn.Write(buf.Bytes())
 			if err != nil {
 				lg.Println(err)
-				retryCount++
-				continue
+				done <- false
 			}
 
-			return nil
+			done <- true
+		}()
+
+		// todo ksenia timeout?
+		select {
+		case <-rfs.failureNotifyChannel:
+			// Miner node failed
+			return DisconnectedError(rfs.minerAddr)
+		case success := <-done:
+			if !success {
+				retryCount++
+			} else {
+				return nil
+			}
 		}
 	}
 }
@@ -359,21 +395,18 @@ func (rfs RFSInstance) getMinerResponse() (shared.RFSMinerResponse, error) {
 			lg.Println("retry count exceeded for getMinerResponse()")
 			return minerResponse, DisconnectedError(rfs.minerAddr)
 		}
-		select {
-		case <-rfs.failureNotifyChannel:
-			// Miner node failed
-			return minerResponse, DisconnectedError(rfs.minerAddr)
-		default:
+		done := make(chan bool, 1)
+		go func() {
 			// Make a buffer to hold incoming response
 			responseBuf := make([]byte, 1024)
 
 			// Read the incoming connection into the buffer
-			rfs.tcpConn.SetReadDeadline(time.Time{})
+			rfs.tcpConn.SetReadDeadline(time.Now().Add(time.Minute))
 			readLen, err := rfs.tcpConn.Read(responseBuf)
 			if err != nil {
 				lg.Println(err)
-				retryCount++
-				continue
+				done <- false
+				return
 			}
 
 			// Decode the miner response
@@ -384,8 +417,20 @@ func (rfs RFSInstance) getMinerResponse() (shared.RFSMinerResponse, error) {
 				// Again, we should never hit decoding errors
 				panic(err)
 			}
+			done <- true
+		}()
 
-			return minerResponse, nil
+		// todo ksenia timeout?
+		select {
+		case <-rfs.failureNotifyChannel:
+			// Miner node failed
+			return minerResponse, DisconnectedError(rfs.minerAddr)
+		case success := <- done:
+			if !success {
+				retryCount++
+			} else {
+				return minerResponse, nil
+			}
 		}
 	}
 }
