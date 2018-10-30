@@ -6,9 +6,9 @@ import (
 	"bytes"
 	"container/heap"
 	"crypto/md5"
+	"io/ioutil"
 	"log"
 	"math"
-	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -36,7 +36,7 @@ type BlockCalculator struct {
 	timePerBlockTimeoutMillis time.Duration
 }
 
-var lg = log.New(os.Stdout, "calculators: ", log.Lmicroseconds|log.Lshortfile)
+var lg = log.New(ioutil.Discard, "calculators: ", log.Lmicroseconds|log.Lshortfile)
 var counter = math.MaxInt32
 
 func (bc *BlockCalculator) AddJob(b *crypto.BlockOp) {
