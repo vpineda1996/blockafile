@@ -7,6 +7,7 @@ import (
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/DistributedClocks/GoVector/govec/vrpc"
 	"log"
+	"net"
 	"net/rpc"
 	"os"
 	"time"
@@ -98,14 +99,19 @@ func (m MinerClient) SendJob(block *crypto.BlockOp) {
 	m.client.Go("MinerServer.ReceiveJob", args, &ans, c)
 }
 
-func NewMinerClient(clientAddr string, localIp string, logger *govec.GoLog) (MinerClient, error) {
-	c, err := vrpc.RPCDial("tcp", clientAddr, logger, govec.GetDefaultLogOptions())
+func NewMinerClient(clientAddr string, incomingAddr string, outgoingIp string, logger *govec.GoLog) (MinerClient, error) {
+	inAddr, err := net.ResolveTCPAddr("tcp", incomingAddr)
+	outgoingAddr := fmt.Sprintf("%s:%v", outgoingIp, inAddr.Port)
+	outAddr, err := net.ResolveTCPAddr("tcp", outgoingAddr)
+	raddr, err := net.ResolveTCPAddr("tcp", clientAddr)
+	conn, err := net.DialTCP("tcp", outAddr, raddr)
 	if err != nil {
 		return MinerClient{}, err
 	}
+	c := vrpc.NewClient(conn, logger, govec.GetDefaultLogOptions())
 	return MinerClient{
 		client: c,
 		logger: logger,
-		lAddr:  localIp,
+		lAddr:  incomingAddr,
 	}, nil
 }

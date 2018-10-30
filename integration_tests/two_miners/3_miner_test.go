@@ -16,6 +16,7 @@ import (
 const BobAddress = "localhost:8080"
 const AliceAddress = "localhost:8081"
 const ClaudiaAddress = "localhost:8082"
+const MinerIP = "localhost"
 var GenesisBlockHash = [md5.Size]byte{1, 2, 3, 4, 5}
 
 var dificulty = 18
@@ -25,7 +26,8 @@ var BobConfig = Config{
 	OpNumberOfZeros:       dificulty,
 	NoOpNumberOfZeros:     dificulty,
 	MinerId:               "bob",
-	Address:               BobAddress,
+	IncomingMinersAddr:    BobAddress,
+	OutgoingMinersIP:	   MinerIP,
 	AppendFee:             1,
 	ConfirmsPerFileAppend: 5,
 	ConfirmsPerFileCreate: 5,
@@ -41,7 +43,8 @@ var ClaudiaConfig = Config{
 	OpNumberOfZeros:       dificulty,
 	NoOpNumberOfZeros:     dificulty,
 	MinerId:               "claudia",
-	Address:               ClaudiaAddress,
+	IncomingMinersAddr:    ClaudiaAddress,
+	OutgoingMinersIP:	   MinerIP,
 	AppendFee:             1,
 	ConfirmsPerFileAppend: 5,
 	ConfirmsPerFileCreate: 5,
@@ -57,7 +60,8 @@ var AliceConfig = Config{
 	OpNumberOfZeros:       dificulty,
 	NoOpNumberOfZeros:     dificulty,
 	MinerId:               "alice",
-	Address:               AliceAddress,
+	IncomingMinersAddr:    AliceAddress,
+	OutgoingMinersIP:	   MinerIP,
 	AppendFee:             1,
 	ConfirmsPerFileAppend: 5,
 	ConfirmsPerFileCreate: 5,

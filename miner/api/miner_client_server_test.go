@@ -77,7 +77,7 @@ func init() {
 }
 
 func TestGetNodeTest(t *testing.T) {
-	c, err := NewMinerClient("localhost"+host, host, loggerV)
+	c, err := NewMinerClient("localhost"+host, host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -92,7 +92,7 @@ func TestGetNodeTest(t *testing.T) {
 }
 
 func TestAddNodeTest(t *testing.T) {
-	c, err := NewMinerClient("localhost"+host, host, loggerV)
+	c, err := NewMinerClient("localhost"+host, host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -102,7 +102,7 @@ func TestAddNodeTest(t *testing.T) {
 }
 
 func TestGetRoots(t *testing.T) {
-	c, err := NewMinerClient("localhost"+host, host, loggerV)
+	c, err := NewMinerClient("localhost"+host, host, host, loggerV)
 
 	if err != nil {
 		t.Fail()
@@ -113,7 +113,7 @@ func TestGetRoots(t *testing.T) {
 }
 
 func TestSendJob(t *testing.T) {
-	c, err := NewMinerClient("localhost"+host, host, loggerV)
+	c, err := NewMinerClient("localhost"+host, host, host, loggerV)
 
 	if err != nil {
 		t.Fail()

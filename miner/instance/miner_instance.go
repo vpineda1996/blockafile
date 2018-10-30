@@ -77,7 +77,8 @@ func NewMinerInstance(configFilename string, group *sync.WaitGroup) Miner {
 		NoOpReward: state.Balance(conf.MinedCoinsPerNoOpBlock),
 		OpNumberOfZeros: int(conf.PowPerOpBlock),
 		NoOpNumberOfZeros: int(conf.PowPerNoOpBlock),
-		Address: conf.IncomingMinersAddr, // todo ksenia. we have several addresses in config, need to update this
+		IncomingMinersAddr: conf.IncomingMinersAddr,
+		OutgoingMinersIP: conf.OutgoingMinersIP,
 		ConfirmsPerFileCreate: int(conf.ConfirmsPerFileCreate),
 		ConfirmsPerFileAppend: int(conf.ConfirmsPerFileAppend),
 		OpPerBlock: 10,

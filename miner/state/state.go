@@ -23,7 +23,8 @@ type MinerState struct {
 	clientsMux *sync.Mutex
 	bc        **BlockCalculator
 	minerId   string
-	lAddr     string
+	outgoingIP string
+	incomingAddr string
 	listeners *list.List
 	listenersMux *sync.Mutex
 }
@@ -35,7 +36,8 @@ type Config struct {
 	NoOpReward            Balance
 	OpNumberOfZeros       int
 	NoOpNumberOfZeros	  int
-	Address               string
+	OutgoingMinersIP  	  string
+	IncomingMinersAddr	  string
 	ConfirmsPerFileCreate int
 	ConfirmsPerFileAppend int
 	OpPerBlock            int
@@ -235,7 +237,7 @@ func (s MinerState) ActivateMiner(){
 func (s MinerState) AddHost(h string) {
 	s.clientsMux.Lock()
 	if _, ok := (*s.clients)[h]; !ok {
-		conn, err := api.NewMinerClient(h, s.lAddr, s.logger)
+		conn, err := api.NewMinerClient(h, s.incomingAddr, s.outgoingIP, s.logger)
 		if err == nil {
 			(*s.clients)[h] = &conn
 		} else {
@@ -255,7 +257,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	logger := govec.InitGoVector(config.MinerId, shared.LOGFILE + "_" + config.MinerId, shared.GoVecOpts)
 	cls := make(map[string]*api.MinerClient, len(connectedMiningNodes))
 	for _, c := range connectedMiningNodes {
-		conn, err := api.NewMinerClient(c, config.Address, logger)
+		conn, err := api.NewMinerClient(c, config.IncomingMinersAddr, config.OutgoingMinersIP, logger)
 		if err == nil {
 			cls[c] = &conn
 		} else {
@@ -271,7 +273,8 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		tm:        &treePtr,
 		bc:        &blockCalcPtr,
 		logger:    logger,
-		lAddr:     config.Address,
+		outgoingIP: config.OutgoingMinersIP,
+		incomingAddr: config.IncomingMinersAddr,
 		listeners: list.New(),
 		listenersMux: new(sync.Mutex),
 	}
@@ -308,7 +311,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	(*ms.tm).StartThreads()
 	(*ms.bc).StartThreads()
 
-	err = api.InitMinerServer(config.Address, ms, ms.logger)
+	err = api.InitMinerServer(config.IncomingMinersAddr, ms, ms.logger)
 	if err != nil {
 		panic("cannot init server twice!")
 	}
