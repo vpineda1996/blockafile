@@ -99,12 +99,17 @@ func InitMinerServer(addr string, state MinerServerListener, logger *govec.GoLog
 	server := rpc.NewServer()
 	server.Register(ms)
 
-	ip, _ := net.ResolveTCPAddr("tcp", addr)
-
-	l, e := net.Listen("tcp", ":" + strconv.Itoa(ip.Port))
+	l, e := net.Listen("tcp", addr)
 	if e != nil {
-		lg.Printf("listen error:", e)
-		return e
+		ip, e := net.ResolveTCPAddr("tcp", addr)
+		if e != nil {
+			return e
+		}
+		l, e = net.Listen("tcp", ":" + strconv.Itoa(ip.Port))
+		if e != nil {
+			lg.Printf("listen error:", e)
+			return e
+		}
 	}
 	lg.Printf("Started listening on port: %v", addr)
 	go vrpc.ServeRPCConn(server, l, logger, govec.GetDefaultLogOptions())
