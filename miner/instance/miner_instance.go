@@ -150,6 +150,7 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 			ConfirmsPerFileAppend: int(miner.minerConf.ConfirmsPerFileAppend),
 			ConfirmsPerFileCreate: int(miner.minerConf.ConfirmsPerFileCreate),
 			NotifyChannel: make(chan int, 100),
+			ExpirationTime: time.Now().Add(LISTENER_EXPIRATION),
 		}
 		miner.minerState.AddTreeListener(ccl)
 		select {
@@ -256,6 +257,7 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 			ConfirmsPerFileAppend: int(miner.minerConf.ConfirmsPerFileAppend),
 			ConfirmsPerFileCreate: int(miner.minerConf.ConfirmsPerFileCreate),
 			NotifyChannel: make(chan int, 100),
+			ExpirationTime: time.Now().Add(LISTENER_EXPIRATION),
 		}
 		miner.minerState.AddTreeListener(acl)
 		for {
@@ -298,6 +300,7 @@ func (miner MinerInstance) DeleteRecHandler(fname string) (errorType FailureType
 			ConfirmsPerFileAppend: int(miner.minerConf.ConfirmsPerFileAppend),
 			ConfirmsPerFileCreate: int(miner.minerConf.ConfirmsPerFileCreate),
 			NotifyChannel: make(chan int, 100),
+			ExpirationTime: time.Now().Add(LISTENER_EXPIRATION),
 		}
 		miner.minerState.AddTreeListener(ccl)
 		select {

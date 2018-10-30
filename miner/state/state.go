@@ -144,6 +144,10 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 					s.listenersMux.Lock()
 					s.listeners.Remove(node)
 					s.listenersMux.Unlock()
+				} else if expired := node.Value.(TreeListener).IsExpired(); expired {
+					s.listenersMux.Lock()
+					s.listeners.Remove(node)
+					s.listenersMux.Unlock()
 				}
 			}
 		}(e)
