@@ -100,18 +100,30 @@ func (m MinerClient) SendJob(block *crypto.BlockOp) {
 }
 
 func NewMinerClient(clientAddr string, incomingAddr string, outgoingIp string, logger *govec.GoLog) (MinerClient, error) {
-	inAddr, err := net.ResolveTCPAddr("tcp", incomingAddr)
-	outgoingAddr := fmt.Sprintf("%s:%v", outgoingIp, inAddr.Port)
-	outAddr, err := net.ResolveTCPAddr("tcp", outgoingAddr)
+	inAddrA, err := net.ResolveTCPAddr("tcp", incomingAddr)
+	if err != nil {
+		return MinerClient{}, err
+	}
+
+	inAddrB, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%v", inAddrA.IP.String(), 0))
+	if err != nil {
+		return MinerClient{}, err
+	}
+
 	raddr, err := net.ResolveTCPAddr("tcp", clientAddr)
-	conn, err := net.DialTCP("tcp", outAddr, raddr)
+	if err != nil {
+		return MinerClient{}, err
+	}
+
+	conn, err := net.DialTCP("tcp", inAddrB, raddr)
 	if err != nil {
 		return MinerClient{}, err
 	}
 	c := vrpc.NewClient(conn, logger, govec.GetDefaultLogOptions())
+	outgoingAddr := fmt.Sprintf("%s:%v", outgoingIp, inAddrA.Port)
 	return MinerClient{
 		client: c,
 		logger: logger,
-		lAddr:  incomingAddr,
+		lAddr:  outgoingAddr,
 	}, nil
 }

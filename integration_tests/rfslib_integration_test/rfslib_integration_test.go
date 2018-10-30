@@ -73,7 +73,7 @@ func TestRFSLibMinerIntegration(t *testing.T) {
 }
 
 /****************** Comment this test out if you don't want to wait forever ******************/
-func TestAppendUntilFileLimit(t *testing.T) {
+/*func TestAppendUntilFileLimit(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	instance.NewMinerInstance("./testfiles/config_nopeers.json", wg)
@@ -114,7 +114,7 @@ func TestAppendUntilFileLimit(t *testing.T) {
 	_, err = rfs.AppendRec(SAMPLE_FNAME, record)
 	assert(t, err != nil, "should have returned an error")
 	ok(t, err)
-}
+}*/
 
 // Taken from https://github.com/benbjohnson/testing
 // assert fails the test if the condition is false.

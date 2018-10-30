@@ -106,11 +106,13 @@ func (s MinerState) GetRemoteRoots() []*crypto.Block {
 	}
 	s.clientsMux.Unlock()
 
-	for _, c := range cpyClients {
+	for k, c := range cpyClients {
 		arr, err := c.GetRoots()
 		if err != nil {
-			// todo vpineda prob remove that host from the host list
 			lg.Printf("error in connection node %v\n", err)
+			s.clientsMux.Lock()
+			delete(*s.clients, k)
+			s.clientsMux.Unlock()
 			continue
 		}
 		for _, h := range arr {
