@@ -43,7 +43,7 @@ func (acl AppendConfirmationListener) TreeEventHandler() bool {
 		return false
 	}
 
-	startIndex := acl.RecordNumber * 512
+	startIndex := uint32(acl.RecordNumber) * 512
 	if bytes.Equal(acl.Data[:], file.Data[startIndex : startIndex + 512]) {
 		acl.NotifyChannel <- 1
 		return true
