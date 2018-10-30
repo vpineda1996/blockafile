@@ -107,7 +107,7 @@ func InitMinerServer(addr string, state MinerServerListener, logger *govec.GoLog
 		}
 		l, e = net.Listen("tcp", ":" + strconv.Itoa(ip.Port))
 		if e != nil {
-			lg.Printf("listen error:", e)
+			lg.Printf("listen error: %s", e)
 			return e
 		}
 	}
