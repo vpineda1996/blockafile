@@ -75,12 +75,10 @@ func TestNonceFinding(t *testing.T) {
 		zeros int
 		mask  []byte
 	}{
-		{1, []byte{0x1}},
-		{4, []byte{0xF}},
-		{8, []byte{0xFF}},
-		{10, []byte{0xFF, 0x3}},
-		{16, []byte{0xFF, 0xFF}},
-		{20, []byte{0xFF, 0xFF, 0xF}},
+		{1, []byte{0xF}},
+		{2, []byte{0xFF}},
+		{3, []byte{0xFF, 0xF}},
+		{6, []byte{0xFF, 0xFF, 0xFF}},
 	}
 	for _, test := range tests {
 		t.Run(strconv.Itoa(test.zeros), func(t *testing.T) {
@@ -156,7 +154,7 @@ func TestZerosConfigNonceFinding(t *testing.T) {
 			PrevBlock: prevBlock,
 			Records:   records,
 		}
-		bk.FindNonce(8, 1)
+		bk.FindNonce(2, 0)
 		h := bk.Hash()
 		hSize := len(h)
 		mask := []byte{0xFF}
@@ -173,7 +171,7 @@ func TestZerosConfigNonceFinding(t *testing.T) {
 			MinerId:   minerId,
 			PrevBlock: [md5.Size]byte{1, 2, 3, 4, 5},
 		}
-		bk.FindNonce(8, 1)
+		bk.FindNonce(2, 0)
 		h := bk.Hash()
 		hSize := len(h)
 		mask := []byte{0xFF}
@@ -190,7 +188,7 @@ func TestZerosConfigNonceFinding(t *testing.T) {
 			MinerId:   minerId,
 			PrevBlock: [md5.Size]byte{1, 2, 3, 4, 5},
 		}
-		bk.FindNonce(1, 8)
+		bk.FindNonce(0, 2)
 		h := bk.Hash()
 		hSize := len(h)
 		mask := []byte{0xFF}

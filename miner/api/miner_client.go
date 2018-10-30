@@ -19,7 +19,7 @@ type MinerClient struct {
 	lAddr  string
 }
 
-var lg = log.New(os.Stdout, "minerC: ", log.Lshortfile)
+var lg = log.New(os.Stdout, "api: ", log.Lshortfile)
 
 func (m MinerClient) GetBlock(id string) (*crypto.Block, bool, error) {
 	args := GetNodeArgs{

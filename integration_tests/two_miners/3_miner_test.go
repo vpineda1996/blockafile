@@ -19,7 +19,7 @@ const ClaudiaAddress = "localhost:8082"
 const MinerIP = "localhost"
 var GenesisBlockHash = [md5.Size]byte{1, 2, 3, 4, 5}
 
-var dificulty = 18
+var dificulty = 4
 
 var BobConfig = Config{
 	GenesisBlockHash:      GenesisBlockHash,
@@ -101,6 +101,8 @@ func TestTwoMiners(t *testing.T) {
 	ok(t, err)
 	equals(t, shared.FileData{}, fs.GetAll()["myFile"].Data)
 
+	BobMiner.SleepMiner()
+	AliceMiner.SleepMiner()
 	// wait for alice to request roots
 	time.Sleep(time.Second * 5)
 	// block should have reached alice
@@ -111,7 +113,6 @@ func TestTwoMiners(t *testing.T) {
 	//
 	// ----------------------------------------------
 	// bob recognizes alice is working on something
-	BobMiner.SleepMiner()
 	job = crypto.BlockOp{
 		Type:         crypto.AppendFile,
 		Data:         [crypto.DataBlockSize]byte{9, 8, 7, 6, 5, 4, 3},
@@ -119,6 +120,7 @@ func TestTwoMiners(t *testing.T) {
 		Filename:     "myFile",
 		RecordNumber: 0,
 	}
+	AliceMiner.ActivateMiner()
 	AliceMiner.AddJob(job)
 
 	// wait for job to be processed

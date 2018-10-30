@@ -3,9 +3,9 @@ package datastruct
 import (
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
-	"os"
 	"strconv"
 )
 
@@ -44,7 +44,7 @@ func (n *Node) Next() *Node {
 	return n.child
 }
 
-var lg = log.New(os.Stdout, "mRootTree: ", log.Lshortfile|log.Lmicroseconds)
+var lg = log.New(ioutil.Discard, "mRootTree: ", log.Lshortfile|log.Lmicroseconds)
 
 type MRootTree struct {
 	// The height of the tree

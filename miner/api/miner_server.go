@@ -7,6 +7,7 @@ import (
 	"github.com/DistributedClocks/GoVector/govec/vrpc"
 	"net"
 	"net/rpc"
+	"strconv"
 )
 
 type MinerServerListener interface {
@@ -98,7 +99,9 @@ func InitMinerServer(addr string, state MinerServerListener, logger *govec.GoLog
 	server := rpc.NewServer()
 	server.Register(ms)
 
-	l, e := net.Listen("tcp", addr)
+	ip, _ := net.ResolveTCPAddr("tcp", addr)
+
+	l, e := net.Listen("tcp", ":" + strconv.Itoa(ip.Port))
 	if e != nil {
 		lg.Printf("listen error:", e)
 		return e

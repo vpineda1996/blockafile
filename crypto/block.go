@@ -90,7 +90,8 @@ func (b *Block) Id() string {
 	return fmt.Sprintf("%x", b.Hash())
 }
 
-func (b *Block) valid(ser []byte, zeros int) bool {
+func (b *Block) valid(ser []byte, hexZeros int) bool {
+	zeros := hexZeros << 2
 	hash := b.hash(ser)
 	for i := len(hash) - 1; i >= 0 && zeros > 0; zeros, i = zeros-8, i-1 {
 		mask := uint8(0xFF)

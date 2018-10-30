@@ -15,8 +15,8 @@ import (
 
 var config = Config{
 	GenesisBlockHash:      [md5.Size]byte{1, 2, 3, 4, 5},
-	OpNumberOfZeros:       16,
-	NoOpNumberOfZeros:     16,
+	OpNumberOfZeros:       4,
+	NoOpNumberOfZeros:     4,
 	MinerId:               "1",
 	IncomingMinersAddr:    "localhost:8085",
 	OutgoingMinersIP:	   "localhost",

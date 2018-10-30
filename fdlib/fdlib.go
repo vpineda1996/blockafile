@@ -15,9 +15,9 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"io/ioutil"
 	"log"
 	"net"
-	"os"
 	"sync"
 	"time"
 )
@@ -79,7 +79,7 @@ var fdlibInstance *fdlib
 var IgnoreInstanceCheck = false
 
 // Logger
-var lg = log.New(os.Stdout, "fdlib: ", log.Ltime)
+var lg = log.New(ioutil.Discard, "fdlib: ", log.Ltime)
 
 // The constructor for a new FD object instance. Note that notifyCh
 // can only be received on by the client that receives it from
