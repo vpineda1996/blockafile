@@ -362,7 +362,7 @@ func (rfs RFSInstance) sendClientRequest(clientRequest shared.RFSClientRequest) 
 
 			// Send to miner
 			lg.Println("Sending client request to miner")
-			rfs.tcpConn.SetWriteDeadline(time.Now().Add(time.Minute))
+			rfs.tcpConn.SetWriteDeadline(time.Now().Add(time.Minute * 30))
 			_, err = rfs.tcpConn.Write(buf.Bytes())
 			if err != nil {
 				lg.Println(err)
@@ -401,7 +401,7 @@ func (rfs RFSInstance) getMinerResponse() (shared.RFSMinerResponse, error) {
 			responseBuf := make([]byte, 1024)
 
 			// Read the incoming connection into the buffer
-			rfs.tcpConn.SetReadDeadline(time.Now().Add(time.Minute))
+			rfs.tcpConn.SetReadDeadline(time.Now().Add(time.Minute * 30))
 			readLen, err := rfs.tcpConn.Read(responseBuf)
 			if err != nil {
 				lg.Println(err)
