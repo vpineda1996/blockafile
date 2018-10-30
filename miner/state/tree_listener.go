@@ -76,3 +76,27 @@ func (ccl CreateConfirmationListener) TreeEventHandler() bool {
 	}
 	return false
 }
+
+type DeleteConfirmationListener struct {
+	Filename string
+	MinerState MinerState
+	ConfirmsPerFileAppend int
+	ConfirmsPerFileCreate int
+	NotifyChannel chan int
+}
+
+func (dcl DeleteConfirmationListener) TreeEventHandler() bool {
+	fs, err := dcl.MinerState.GetFilesystemState(
+		dcl.ConfirmsPerFileCreate,
+		dcl.ConfirmsPerFileAppend)
+	if err != nil {
+		lg.Println("DeleteConfirmationListener, ", err)
+		return false
+	}
+
+	_, exists := fs.GetFile(Filename(dcl.Filename))
+	if !exists {
+		dcl.NotifyChannel <- 1
+	}
+	return !exists
+}

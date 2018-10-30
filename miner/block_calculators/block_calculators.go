@@ -88,7 +88,6 @@ func NoOpCalculator(bc *BlockCalculator) {
 	for !bc.shutdownThreads {
 		newBlock := generateNewBlock(bc, []*crypto.BlockOp{}, &bc.noopSuspended, crypto.NoOpBlock)
 		if !bc.noopSuspended && bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
-			//lg.Printf("No-op calculator found a block")
 			bc.listener.AddBlock(newBlock)
 		}
 		time.Sleep(time.Millisecond * 50)
@@ -112,7 +111,6 @@ func generateNewBlock(bc *BlockCalculator, ops []*crypto.BlockOp, suspendBool *b
 }
 
 func addedToLongestChainValidation(bc *BlockCalculator, block *crypto.Block) bool {
-	bc.noopSuspended = false
 	defer func() {bc.noopSuspended = true}()
 	for {
 		depth := bc.listener.InLongestChain(block.Id())
@@ -121,6 +119,7 @@ func addedToLongestChainValidation(bc *BlockCalculator, block *crypto.Block) boo
 		} else if depth > bc.maxConfirm {
 			return true
 		}
+		bc.noopSuspended = false
 		time.Sleep(time.Millisecond * 50)
 	}
 }
@@ -134,7 +133,6 @@ func JobsCalculator(bc *BlockCalculator) {
 			for {
 				newBlock := generateNewBlock(bc, blockOps, new(bool), crypto.RegularBlock)
 				lg.Printf("Generated block with %v ops", len(blockOps))
-
 				// once we found a block send it and remove those jobs form the queue
 				if bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
 					lg.Printf("Jobs calculator found a block")
@@ -150,7 +148,6 @@ func JobsCalculator(bc *BlockCalculator) {
 					break
 				}
 			}
-
 		} else {
 			bc.noopSuspended = false
 		}

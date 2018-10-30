@@ -76,6 +76,7 @@ type FD interface {
 
 // Private instance of implemented FD interface.
 var fdlibInstance *fdlib
+var IgnoreInstanceCheck = false
 
 // Logger
 var lg = log.New(os.Stdout, "fdlib: ", log.Ltime)
@@ -90,8 +91,8 @@ func InitializeFDLib(EpochNonce uint64, ChCapacity uint8) (fd FD, notifyCh <-cha
 	// The fd is an FD interface instance that implements the rest of the API below.
 	// The returned notify-channel channel must have capacity ChCapacity and must be used by
 	// fdlib to deliver all failure notifications for nodes being monitored.
-	if fdlibInstance != nil {
-		return nil, nil, errors.New("multiple invocations of Initialize() are not permitted")
+	if fdlibInstance != nil && !IgnoreInstanceCheck {
+		return nil, nil, errors.New("fdlib: multiple invocations of Initialize() are not permitted")
 	}
 
 	notifyChannel := make(chan FailureDetected, ChCapacity)

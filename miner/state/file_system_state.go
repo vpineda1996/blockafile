@@ -141,7 +141,6 @@ func evaluateFSBlockOps(
 				}
 			}
 		case crypto.DeleteFile:
-			lg.Printf("in delete")
 			if createOpsConfirmed {
 				if _, exists := fs[Filename(tx.Filename)]; !exists {
 					return errors.New("file " + tx.Filename + " doesn't exist and cannot delete")

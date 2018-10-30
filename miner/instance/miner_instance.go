@@ -1,10 +1,10 @@
-package main
+package instance
 
 import (
-	"../crypto"
-	"../fdlib"
-	. "../shared"
-	"./state"
+	"../../crypto"
+	"../../fdlib"
+	. "../../shared"
+	"../state"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -25,6 +25,7 @@ type Miner interface {
 	TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType)
 	ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType FailureType)
 	AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType)
+	DeleteRecHandler(fname string) (errorType FailureType)
 }
 
 type MinerConfiguration struct {
@@ -46,15 +47,15 @@ type MinerConfiguration struct {
 
 var lg = log.New(os.Stdout, "miner: ", log.Ltime)
 
-func main() {
-	argsWithoutProg := os.Args[1:]
-	if len(argsWithoutProg) != 1 {
-		lg.Println("usage: go run miner.go [settings]")
-		os.Exit(1)
-	}
+type MinerInstance struct {
+	minerConf MinerConfiguration
+	minerState state.MinerState
+	clientHandler ClientHandler
+}
 
+func NewMinerInstance(configFilename string, group *sync.WaitGroup) Miner {
 	// Parse configuration
-	conf, err := ParseConfig(argsWithoutProg[0])
+	conf, err := ParseConfig(configFilename)
 	if err != nil {
 		lg.Println(err)
 		os.Exit(1)
@@ -100,22 +101,14 @@ func main() {
 	}
 	fd.StartResponding(conf.IncomingClientsAddr)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	lg.Println("Listening for clients...")
-
 	ci := ClientHandler{
 		ListenHost: conf.IncomingClientsAddr,
 		miner:      &minerInstance,
-		waitGroup:  wg,
+		waitGroup:  group,
 	}
 	go ci.ListenForClients()
-	wg.Wait()
-}
 
-type MinerInstance struct {
-	minerConf MinerConfiguration
-	minerState state.MinerState
+	return minerInstance
 }
 
 // errorType can be one of: FILE_EXISTS, BAD_FILENAME, NO_ERROR
@@ -275,6 +268,44 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 	}
 }
 
+// errorType can be one of: FILE_DOES_NOT_EXIST, NO_ERROR
+func (miner MinerInstance) DeleteRecHandler(fname string) (errorType FailureType) {
+	for {
+		lg.Println("Handling delete file request")
+
+		// create job
+		job := new(crypto.BlockOp)
+		job.Type = crypto.DeleteFile
+		job.Creator = miner.minerConf.MinerID
+		job.Filename = fname
+
+		// validate against file system, accounts states
+		_, _, filesErr := miner.minerState.ValidateJobSet([]*crypto.BlockOp{job})
+
+		if filesErr != nil {
+			singleFilesErr := getSingleFilesError(filesErr)
+			if singleFilesErr == FILE_DOES_NOT_EXIST {
+				return singleFilesErr
+			}
+		}
+
+		// add job wait for it to complete
+		miner.minerState.AddJob(*job)
+		ccl := state.DeleteConfirmationListener {
+			Filename: fname,
+			MinerState: miner.minerState,
+			ConfirmsPerFileAppend: int(miner.minerConf.ConfirmsPerFileAppend),
+			ConfirmsPerFileCreate: int(miner.minerConf.ConfirmsPerFileCreate),
+			NotifyChannel: make(chan int, 100),
+		}
+		miner.minerState.AddTreeListener(ccl)
+		select {
+		case <- ccl.NotifyChannel:
+			return NO_ERROR
+		}
+	}
+}
+
 /////////// Helpers ///////////////////////////////////////////////////////
 
 func ParseConfig(fileName string) (MinerConfiguration, error){
@@ -309,19 +340,8 @@ func (miner MinerInstance) getFileSystemState() state.FilesystemState {
 }
 
 func getSingleFilesError(compositeError error) FailureType {
-	// todo ksenia make this better
-	if cerr, ok := compositeError.(state.CompositeError); ok {
-		if _, ok := cerr.Current.(state.FileAlreadyExistsValidationError); ok {
-			return FILE_EXISTS
-		} else if _, ok := cerr.Current.(state.BadFileNameValidationError); ok {
-			return BAD_FILENAME
-		} else if _, ok := cerr.Current.(state.FileDoesNotExistValidationError); ok {
-			return FILE_DOES_NOT_EXIST
-		} else if _, ok := cerr.Current.(state.AppendDuplicateValidationError); ok {
-			return APPEND_DUPLICATE
-		} else if _, ok := cerr.Current.(state.MaxLengthReachedValidationError); ok {
-			return MAX_LEN_REACHED
-		}
+	if cerr, ok := compositeError.(state.BlockChainValidatorError); ok {
+		cerr.GetErrorCode()
 	}
 	return NO_ERROR
 }

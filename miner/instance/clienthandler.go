@@ -1,7 +1,7 @@
-package main
+package instance
 
 import (
-	"../shared"
+	"../../shared"
 	"bytes"
 	"encoding/gob"
 	"io"
@@ -100,6 +100,9 @@ func (c ClientHandler) ServiceClientRequest(conn net.Conn) error {
 				(*minerInstance).AppendRecHandler(clientRequest.FileName, clientRequest.AppendRecord)
 			minerResponse.RecordNum = recordNum
 			minerResponse.ErrorType = appendRecError
+		case shared.DELETE_FILE:
+			deleteFileError := (*minerInstance).DeleteRecHandler(clientRequest.FileName)
+			minerResponse.ErrorType = deleteFileError
 		default:
 			// Invalid request type, ignore it
 			continue
