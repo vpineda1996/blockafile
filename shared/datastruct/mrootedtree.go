@@ -3,9 +3,9 @@ package datastruct
 import (
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
-	"os"
 	"strconv"
 )
 
