@@ -345,7 +345,7 @@ func (miner MinerInstance) getFileSystemState() state.FilesystemState {
 
 func getSingleFilesError(compositeError error) FailureType {
 	if cerr, ok := compositeError.(state.BlockChainValidatorError); ok {
-		cerr.GetErrorCode()
+		return cerr.GetErrorCode()
 	}
 	return NO_ERROR
 }
