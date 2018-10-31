@@ -13,6 +13,12 @@ import (
 type fakeState struct {
 }
 
+func (fakeState) AddBlockIgnoringHost(h string, b *crypto.Block) {
+	if !reflect.DeepEqual(bk, *b) {
+		panic("error, blocks weren't equal")
+	}
+}
+
 func (fakeState) AddHost(h string) {
 }
 
