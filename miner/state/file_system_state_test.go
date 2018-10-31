@@ -645,3 +645,49 @@ func TestConfirmationTree(t *testing.T) {
 		equals(t, "1", fs["c"].Creator)
 	})
 }
+
+func TestMaxFileLength(t *testing.T) {
+	t.Run("simple tree with just genesis, a no-op block, a record and append", func(t *testing.T) {
+		addOrder := make([]int, 0, 655370)
+		addOrder = append(addOrder, []int{0, 100, 1, int(crypto.NoOpBlock), 0, 1, 0, 0, 0, 0}...)
+		addOrder = append(addOrder, []int{100, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.CreateFile), 0}...)
+		for i := 0; i < 65535; i++ {
+			addOrder = append(
+				addOrder,
+				[]int{101 + i, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), i}...)
+		}
+		treeDef := treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: addOrder,
+		}
+		tree := buildFSTree(treeDef)
+		fsState, err := NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err != nil {
+			log.Println(err)
+			t.Fail()
+		}
+		fs := fsState.GetAll()
+		equals(t, 1, len(fs))
+		equals(t, "1", fs["a"].Creator)
+		equals(t, uint16(65535), fs["a"].NumberOfRecords)
+		// Try to read last record
+		startIndex := 65534 * crypto.DataBlockSize
+		equals(t, datum[0][:], []byte(fs["a"].Data)[startIndex:startIndex+crypto.DataBlockSize])
+
+		// Add one more record over capacity
+		addOrder = append(addOrder, []int{101 + 65535, 1, 1, int(crypto.RegularBlock), 1, 1, 0, 0, int(crypto.AppendFile), 65535}...)
+		treeDef = treeBuilderTest{
+			height: 1,
+			roots:  1,
+			addOrder: addOrder,
+		}
+		tree = buildFSTree(treeDef)
+		fsState, err = NewFilesystemState(0, 0, tree.GetLongestChain())
+		if err == nil {
+			t.Fail()
+		}
+		fs = fsState.GetAll()
+		equals(t, 0, len(fs))
+	})
+}

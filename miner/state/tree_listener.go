@@ -3,10 +3,12 @@ package state
 import (
 	. "../../shared"
 	"bytes"
+	"time"
 )
 
 type TreeListener interface {
 	TreeEventHandler() bool
+	IsExpired() bool
 }
 
 type AppendConfirmationListener struct {
@@ -18,6 +20,7 @@ type AppendConfirmationListener struct {
 	ConfirmsPerFileAppend int
 	ConfirmsPerFileCreate int
 	NotifyChannel chan int
+	ExpirationTime time.Time
 }
 
 func (acl AppendConfirmationListener) TreeEventHandler() bool {
@@ -40,12 +43,16 @@ func (acl AppendConfirmationListener) TreeEventHandler() bool {
 		return false
 	}
 
-	startIndex := acl.RecordNumber * 512
+	startIndex := uint32(acl.RecordNumber) * 512
 	if bytes.Equal(acl.Data[:], file.Data[startIndex : startIndex + 512]) {
 		acl.NotifyChannel <- 1
 		return true
 	}
 	return false
+}
+
+func (acl AppendConfirmationListener) IsExpired() bool {
+	return isPastTime(acl.ExpirationTime)
 }
 
 type CreateConfirmationListener struct {
@@ -55,6 +62,7 @@ type CreateConfirmationListener struct {
 	ConfirmsPerFileAppend int
 	ConfirmsPerFileCreate int
 	NotifyChannel chan int
+	ExpirationTime time.Time
 }
 
 func (ccl CreateConfirmationListener) TreeEventHandler() bool {
@@ -77,12 +85,17 @@ func (ccl CreateConfirmationListener) TreeEventHandler() bool {
 	return false
 }
 
+func (ccl CreateConfirmationListener) IsExpired() bool {
+	return isPastTime(ccl.ExpirationTime)
+}
+
 type DeleteConfirmationListener struct {
 	Filename string
 	MinerState MinerState
 	ConfirmsPerFileAppend int
 	ConfirmsPerFileCreate int
 	NotifyChannel chan int
+	ExpirationTime time.Time
 }
 
 func (dcl DeleteConfirmationListener) TreeEventHandler() bool {
@@ -99,4 +112,13 @@ func (dcl DeleteConfirmationListener) TreeEventHandler() bool {
 		dcl.NotifyChannel <- 1
 	}
 	return !exists
+}
+
+func (dcl DeleteConfirmationListener) IsExpired() bool {
+	return isPastTime(dcl.ExpirationTime)
+}
+
+// Helpers
+func isPastTime(expirationTime time.Time) bool {
+	return time.Now().After(expirationTime)
 }
