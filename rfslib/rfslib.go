@@ -227,7 +227,7 @@ func (rfs RFSInstance) DeleteFile(fname string) (err error) {
 	// Generate the proper error to return to the client
 	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
 
-	lg.Printf("Miner responded to delete file request: %v\n", minerResponse)
+	lg.Printf("Miner responded to delete file request")
 	return responseErr
 }
 
@@ -248,7 +248,7 @@ func (rfs RFSInstance) CreateFile(fname string) (err error) {
 	// Generate the proper error to return to the client
 	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
 
-	lg.Printf("Miner responded to create file request: %v\n", minerResponse)
+	lg.Printf("Miner responded to create file request")
 	return responseErr
 }
 
@@ -269,7 +269,7 @@ func (rfs RFSInstance) ListFiles() (fnames []string, err error) {
 	// Generate the proper error to return to the client
 	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
 
-	lg.Printf("Miner responded to list files request: %v\n", minerResponse)
+	lg.Printf("Miner responded to list files request")
 	return minerResponse.FileNames, responseErr
 }
 
@@ -290,7 +290,7 @@ func (rfs RFSInstance) TotalRecs(fname string) (numRecs uint16, err error) {
 	// Generate the proper error to return to the client
 	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
 
-	lg.Printf("Miner responded to total recs request: %v\n", minerResponse)
+	lg.Printf("Miner responded to total recs request")
 	return minerResponse.NumRecords, responseErr
 }
 
@@ -314,7 +314,7 @@ func (rfs RFSInstance) ReadRec(fname string, recordNum uint16, record *Record) (
 	// Copy the returned bytes into record
 	copy(record[:], minerResponse.ReadRecord[:])
 
-	lg.Printf("Miner responded to read rec request: %v\n", minerResponse)
+	lg.Printf("Miner responded to read rec request")
 	return responseErr
 }
 
@@ -335,7 +335,7 @@ func (rfs RFSInstance) AppendRec(fname string, record *Record) (recordNum uint16
 	// Generate the proper error to return to the client
 	responseErr := rfs.generateResponseError(clientRequest, minerResponse)
 
-	lg.Printf("Miner responded to append record request: %v\n", minerResponse)
+	lg.Printf("Miner responded to append record request")
 	return minerResponse.RecordNum, responseErr
 }
 
