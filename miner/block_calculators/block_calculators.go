@@ -156,6 +156,7 @@ func JobsCalculator(bc *BlockCalculator) {
 					for _, r := range newBlock.Records {
 						bc.AddJob(r)
 					}
+					break
 				}
 			}
 		} else {
