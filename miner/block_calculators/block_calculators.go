@@ -150,6 +150,12 @@ func JobsCalculator(bc *BlockCalculator) {
 						}
 					}
 					break
+				} else if bc.opSuspended {
+					// if the op was suspended, retry doing the job again, worst case we filter out the op
+					// when its repeated
+					for _, r := range newBlock.Records {
+						bc.AddJob(r)
+					}
 				}
 			}
 		} else {
