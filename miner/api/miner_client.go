@@ -105,7 +105,11 @@ func NewMinerClient(clientAddr string, incomingAddr string, outgoingIp string, l
 		return MinerClient{}, err
 	}
 
-	inAddrB, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%v", inAddrA.IP.String(), 0))
+	inAddrAIP := inAddrA.IP.String()
+	if inAddrAIP == "<nil>" {
+		inAddrAIP = ""
+	}
+	inAddrB, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%v", inAddrAIP, 0))
 	if err != nil {
 		return MinerClient{}, err
 	}
