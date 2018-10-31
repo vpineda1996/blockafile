@@ -11,4 +11,4 @@ where we decided to build a distributed filesystem on top of blockchain.
 You shall never contribute to this project. It is ugly, the codebase
 is utter crap, why would you read our code? Why?
 
-![WTF](http://i.imgur.com/Z7qATcx.gif)
+![Remeber I'm a mad man and I'll hug your mom](https://media.giphy.com/media/ImCDGbzDa4Tdu/giphy.gif)
