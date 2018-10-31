@@ -27,6 +27,7 @@ type BlockCalculator struct {
 	listener                  BlockCalculatorListener
 	jobSet                    *datastruct.PriorityQueue
 	noopSuspended             bool
+	opSuspended               bool
 	shutdownThreads           bool
 	mtx                       *sync.Mutex
 	opsPerBlock               int
@@ -72,6 +73,8 @@ func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
 			heap.Remove(bc.jobSet, hpIdx)
 		}
 	}
+	bc.opSuspended = true
+	bc.noopSuspended = true
 }
 
 func (bc *BlockCalculator) ShutdownThreads() {
@@ -131,7 +134,8 @@ func JobsCalculator(bc *BlockCalculator) {
 			// stop noop thread and start mining your own block
 			bc.noopSuspended = true
 			for {
-				newBlock := generateNewBlock(bc, blockOps, new(bool), crypto.RegularBlock)
+				bc.opSuspended = false
+				newBlock := generateNewBlock(bc, blockOps, &bc.opSuspended, crypto.RegularBlock)
 				lg.Printf("Generated block with %v ops", len(blockOps))
 				// once we found a block send it and remove those jobs form the queue
 				if bytes.Equal(bc.listener.GetHighestRoot().Hash(), newBlock.PrevBlock[:]) {
