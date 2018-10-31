@@ -183,8 +183,10 @@ func (s MinerState) broadcastBlock(b *crypto.Block) {
 		}
 		s.clientsMux.Unlock()
 
+		// Wait for the network to settle down
+		time.Sleep(time.Millisecond * 50)
 		for k, c := range cpyClients {
-			lg.Printf("Sending block to: %v", k)
+			lg.Printf("Sending block %v to: %v", b.Id(), k)
 			c.SendBlock(b)
 		}
 	}()
