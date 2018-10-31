@@ -10,6 +10,11 @@ func (queue *Queue) Enqueue(n QueueElement) {
 	queue.enqueue.Push(n)
 }
 
+func (queue *Queue) Clear() {
+	queue.dequeue = Stack{}
+	queue.enqueue = Stack{}
+}
+
 func (queue *Queue) Dequeue() (QueueElement, bool) {
 	v, ok := queue.dequeue.Pop()
 	if ok {
