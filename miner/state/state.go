@@ -11,6 +11,7 @@ import (
 	"github.com/DistributedClocks/GoVector/govec"
 	"log"
 	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -175,6 +176,7 @@ func (s MinerState) AddBlock(b *crypto.Block) {
 }
 
 func (s MinerState) broadcastBlock(b *crypto.Block) {
+	debug.PrintStack()
 	go func() {
 		cpyClients := make(map[string]*api.MinerClient)
 		s.clientsMux.Lock()
