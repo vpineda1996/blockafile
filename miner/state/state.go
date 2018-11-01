@@ -154,10 +154,16 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 			}
 		}(e)
 	}
+	(*s.bc).RestartBlockCalculation()
 	s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
 }
 
 func (s MinerState) AddBlock(b *crypto.Block) {
+	// add it to the tree manager and then broadcast the block
+	s.addBlock([]string{}, b)
+}
+
+func  (s MinerState) addBlock(hosts []string, b *crypto.Block) {
 	// add it to the tree manager and then broadcast the block
 	if !(*s.tm).Exists(b) {
 		err := (*s.tm).AddBlock(crypto.BlockElement{
@@ -167,24 +173,35 @@ func (s MinerState) AddBlock(b *crypto.Block) {
 			return
 		}
 		// bkst block
-		s.broadcastBlock(b)
+		mp := make(map[string]bool)
+		for _, h := range hosts {
+			mp[h] = true
+		}
+		s.broadcastBlock(b, mp)
 	} else {
 		lg.Printf("WARN: Recieved block %v but rejected", b.Id())
 		s.logger.LogLocalEvent(fmt.Sprintf(" Recieved block %v but I have it", b.Id()), WARN)
 	}
 }
 
-func (s MinerState) broadcastBlock(b *crypto.Block) {
+func (s MinerState) AddBlockIgnoringHost(host string, b *crypto.Block) {
+	// add it to the tree manager and then broadcast the block
+	s.addBlock([]string{host}, b)
+}
+
+func (s MinerState) broadcastBlock(b *crypto.Block, ignoreHosts map[string]bool) {
 	go func() {
 		cpyClients := make(map[string]*api.MinerClient)
 		s.clientsMux.Lock()
 		for k, v := range *s.clients {
-			cpyClients[k] = v
+			if _, ignore := ignoreHosts[k]; !ignore {
+				cpyClients[k] = v
+			}
 		}
 		s.clientsMux.Unlock()
 
 		for k, c := range cpyClients {
-			lg.Printf("Sending block to: %v", k)
+			lg.Printf("Sending block %v to: %v", b.Id(), k)
 			c.SendBlock(b)
 		}
 	}()

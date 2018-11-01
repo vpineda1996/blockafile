@@ -26,6 +26,7 @@ type TreeManager struct {
 	findBlockQueue  *datastruct.Queue
 	findBlockNotify chan bool
 	shutdownThreads bool
+	queueLock *sync.Mutex
 }
 
 func (t *TreeManager) GetBlock(id string) (*crypto.Block, bool) {
@@ -54,6 +55,8 @@ func (t *TreeManager) GetRoots() []*crypto.Block {
 	return bkArr
 }
 
+const MAX_ELEM_INQUEUE = 100
+
 func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	if _, ok := t.mTree.Find(b.ParentId()); ok {
 		// simple case: the reference node is in the chain
@@ -80,7 +83,15 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 		return bl.Id() == b.Id()
 	}
 
-	if t.findBlockQueue.IsInQueue(eqFn) {
+	t.queueLock.Lock()
+	if t.findBlockQueue.Len() > MAX_ELEM_INQUEUE {
+		t.findBlockQueue.Clear()
+	}
+
+	inQueue := t.findBlockQueue.IsInQueue(eqFn)
+	t.queueLock.Unlock()
+
+	if inQueue {
 		// third case, the block is in the queue so don't do anything
 		return nil
 	}
@@ -88,7 +99,10 @@ func (t *TreeManager) AddBlock(b crypto.BlockElement) error {
 	// harder case.. we don't know where this block came from,
 	// queue it and defer it to a another place
 	lg.Printf("Enqueuing block %v\n", b.Id())
+	t.queueLock.Lock()
 	t.findBlockQueue.Enqueue(b)
+	t.queueLock.Unlock()
+
 	select {
 	case t.findBlockNotify <- true:
 	default:
@@ -137,7 +151,9 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 	if b.Block.Type == crypto.GenesisBlock {
 		err := t.AddBlock(b)
 		if err != nil {
+			t.queueLock.Lock()
 			removeNodesStartingFrom(b, t.findBlockQueue)
+			t.queueLock.Unlock()
 			return false
 		}
 		return true
@@ -148,7 +164,9 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 		if _, ok := t.mTree.Find(b.Id()); !ok {
 			err := t.AddBlock(b)
 			if err != nil {
+				t.queueLock.Lock()
 				removeNodesStartingFrom(b, t.findBlockQueue)
+				t.queueLock.Unlock()
 				return false
 			}
 		}
@@ -161,11 +179,17 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 		return bl.Id() == b.ParentId()
 	}
 
-	if t.findBlockQueue.IsInQueue(eqParIdFn) {
+	t.queueLock.Lock()
+	inQueue := t.findBlockQueue.IsInQueue(eqParIdFn)
+	t.queueLock.Unlock()
+
+	if inQueue {
 		lg.Printf("Found parent %v, in queue. Queuing block %v", b.ParentId(), b.Id())
 		err := t.AddBlock(b)
 		if err != nil {
+			t.queueLock.Lock()
 			removeNodesStartingFrom(b, t.findBlockQueue)
+			t.queueLock.Unlock()
 			return false
 		}
 		return true
@@ -175,7 +199,9 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 	block, ok := t.br.GetRemoteBlock(b.ParentId())
 	if !ok {
 		lg.Printf("Discarding block %v since no node knows about its parent", b.Id())
+		t.queueLock.Lock()
 		removeNodesStartingFrom(b, t.findBlockQueue)
+		t.queueLock.Unlock()
 		return false
 	} else {
 		// we found the parent block!, add the parent if the parent of the parent is there
@@ -187,13 +213,17 @@ func blockAdderHelper(t *TreeManager, b crypto.BlockElement) bool {
 			if err == nil {
 				err := t.AddBlock(b)
 				if err != nil {
+					t.queueLock.Lock()
 					removeNodesStartingFrom(b, t.findBlockQueue)
+					t.queueLock.Unlock()
 					return false
 				}
 				return true
 			} else {
 				// remove all of the nodes that had b as parent
+				t.queueLock.Lock()
 				removeNodesStartingFrom(b, t.findBlockQueue)
+				t.queueLock.Unlock()
 				return false
 			}
 		} else {
@@ -227,10 +257,14 @@ func removeNodesStartingFrom(block crypto.BlockElement, q *datastruct.Queue) boo
 
 func FindNodeThread(t *TreeManager) {
 	for !t.shutdownThreads {
+		t.queueLock.Lock()
 		for v, ok := t.findBlockQueue.Dequeue(); ok; v, ok = t.findBlockQueue.Dequeue() {
+			t.queueLock.Unlock()
 			block := v.(crypto.BlockElement)
-			blockAdderHelper(t, block)
+			go blockAdderHelper(t, block)
+			t.queueLock.Lock()
 		}
+		t.queueLock.Unlock()
 		select {
 		case <-t.findBlockNotify:
 		}
@@ -262,6 +296,7 @@ func NewTreeManager(cnf Config, br BlockRetriever, tcl TreeChangeListener) *Tree
 		findBlockQueue:  &datastruct.Queue{},
 		findBlockNotify: make(chan bool),
 		shutdownThreads: false,
+		queueLock: new(sync.Mutex),
 	}
 	return tm
 }
