@@ -73,6 +73,8 @@ func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
 			heap.Remove(bc.jobSet, hpIdx)
 		}
 	}
+	bc.opSuspended = true
+	bc.noopSuspended = true
 }
 
 func (bc *BlockCalculator) RestartBlockCalculation() {
@@ -159,6 +161,7 @@ func JobsCalculator(bc *BlockCalculator) {
 					for _, r := range newBlock.Records {
 						bc.AddJob(r)
 					}
+					break
 				}
 			}
 		} else {
