@@ -17,6 +17,7 @@ type FailureType int
 
 const (
 	BAD_FILENAME = iota
+	DISCONNECTED
 	FILE_DOES_NOT_EXIST
 	FILE_EXISTS
 	MAX_LEN_REACHED

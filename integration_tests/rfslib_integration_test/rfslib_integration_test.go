@@ -16,7 +16,7 @@ import (
 func TestRFSLibMinerIntegration(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	instance.NewMinerInstance("./testfiles/config_nopeers.json", wg)
+	instance.NewMinerInstance("./testfiles/config_nopeers.json", wg, false)
 	time.Sleep(time.Second)
 
 	fdlib.IgnoreInstanceCheck = true
