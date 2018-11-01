@@ -11,7 +11,7 @@ import (
 )
 
 type MinerServerListener interface {
-	AddBlock(b *crypto.Block)
+	AddBlockIgnoringHost(h string, b *crypto.Block)
 	AddJob(b crypto.BlockOp)
 	AddHost(h string)
 	GetBlock(id string) (*crypto.Block, bool)
@@ -75,7 +75,7 @@ type ReceiveNodeArgs struct {
 func (m *MinerServer) ReceiveNode(args *ReceiveNodeArgs, res *bool) error {
 	m.listener.AddHost(args.Host)
 	*res = true
-	m.listener.AddBlock(&args.Block)
+	m.listener.AddBlockIgnoringHost(args.Host, &args.Block)
 	return nil
 }
 
