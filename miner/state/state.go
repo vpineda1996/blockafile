@@ -154,6 +154,7 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 			}
 		}(e)
 	}
+	(*s.bc).RestartBlockCalculation()
 	s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
 }
 

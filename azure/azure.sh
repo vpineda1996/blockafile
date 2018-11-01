@@ -2,7 +2,7 @@
 
 # get deployment ip addresses
 # ONLY TO GET HOSTS ADD THEM TO LST
-# az vmss list-instance-public-ips --name TestSet --resource-group myresource | grep -i \"ipAddress\" | awk '{ print $2}' | sed 's/\"//' | sed 's/",//'
+# az vmss list-instance-public-ips --name TestSet --resource-group myresource | grep -i \"ipAddress\" | awk '{ print $2}' | sed 's/,//'
 
 # FILL IN THE LIST OF HOSTS
 LST=("13.66.175.108"
@@ -84,6 +84,12 @@ wait
 
 for i in ${LST[*]}; do
     ssh ${i} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "cd P1-e5w9a-b2v9a; sed -i \
+    's/\\("'"'"PowPerOpBlock"'"'" :\\).*$/\\1 8,/g' testfiles/config_good.json" &
+done
+wait
+
+for i in ${LST[*]}; do
+    ssh ${i} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "cd P1-e5w9a-b2v9a; sed -i \
     's/\\("'"'"IncomingClientsAddr"'"'" :\\).*$/\\1 "'"'":9090"'"'"/g' testfiles/config_good.json" &
 done
 wait
@@ -114,11 +120,10 @@ for i in ${LST[*]}; do
 done
 wait
 
-tmux new-session -s test -d
 for i in ${LST[*]}; do
     tmux new-window "ssh ${i} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no 'cd P1-e5w9a-b2v9a; \
     /usr/lib/go-1.10/bin/go run ./miner.go testfiles/config_good.json'"
-    sleep 2
+    sleep 3
 done
 tmux attach
 wait

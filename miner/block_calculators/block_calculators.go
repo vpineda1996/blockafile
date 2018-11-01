@@ -73,6 +73,9 @@ func (bc *BlockCalculator) RemoveJobsFromBlock(block *crypto.Block) {
 			heap.Remove(bc.jobSet, hpIdx)
 		}
 	}
+}
+
+func (bc *BlockCalculator) RestartBlockCalculation() {
 	bc.opSuspended = true
 	bc.noopSuspended = true
 }
