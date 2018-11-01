@@ -19,9 +19,7 @@ import (
 // Miner type declaration
 type Miner interface {
 	CreateFileHandler(fname string) (errorType FailureType)
-	// ListFilesHandler() does not return any error because on the client-side, the only kind of error
-	// that can be returned is a DisconnectedError, which means we would never reach the Miner in the first place.
-	ListFilesHandler() (fnames []string)
+	ListFilesHandler() (fnames []string, errorType FailureType)
 	TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType)
 	ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType FailureType)
 	AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType)
@@ -53,7 +51,7 @@ type MinerInstance struct {
 	clientHandler ClientHandler
 }
 
-func NewMinerInstance(configFilename string, group *sync.WaitGroup) Miner {
+func NewMinerInstance(configFilename string, group *sync.WaitGroup, singleMinerDisconnected bool) Miner {
 	// Parse configuration
 	conf, err := ParseConfig(configFilename)
 	if err != nil {
@@ -85,6 +83,7 @@ func NewMinerInstance(configFilename string, group *sync.WaitGroup) Miner {
 		MinerId: conf.MinerID,
 		GenesisBlockHash: blockHashBytes,
 		GenOpBlockTimeout: conf.GenOpBlockTimeout,
+		SingleMinerDisconnected: singleMinerDisconnected,
 	}
 	ms := state.NewMinerState(minerStateConf, conf.PeerMinersAddrs)
 
@@ -112,10 +111,15 @@ func NewMinerInstance(configFilename string, group *sync.WaitGroup) Miner {
 	return minerInstance
 }
 
-// errorType can be one of: FILE_EXISTS, BAD_FILENAME, NO_ERROR
+// errorType can be one of: FILE_EXISTS, BAD_FILENAME, DISCONNECTED, NO_ERROR
 func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureType) {
 	for {
 		lg.Println("Handling create file request")
+
+		// check if miner is disconnected
+		if miner.minerState.IsDisconnected() {
+			return DISCONNECTED
+		}
 
 		// create job
 		job := new(crypto.BlockOp)
@@ -160,8 +164,14 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 	}
 }
 
-func (miner MinerInstance) ListFilesHandler() (fnames []string) {
+// errorType can be one of: DISCONNECTED, NO_ERROR
+func (miner MinerInstance) ListFilesHandler() (fnames []string, errorType FailureType) {
 	lg.Println("Handling list files request")
+
+	// check if miner is disconnected
+	if miner.minerState.IsDisconnected() {
+		return []string{}, DISCONNECTED
+	}
 
 	fs := miner.getFileSystemState()
 
@@ -172,12 +182,17 @@ func (miner MinerInstance) ListFilesHandler() (fnames []string) {
 		fnames[i] = string(key)
 		i++
 	}
-	return fnames
+	return fnames, NO_ERROR
 }
 
-// errorType can be one of: FILE_DOES_NOT_EXIST, NO_ERROR
+// errorType can be one of: FILE_DOES_NOT_EXIST, DISCONNECTED, NO_ERROR
 func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType) {
 	lg.Println("Handling total records request")
+
+	// check if miner is disconnected
+	if miner.minerState.IsDisconnected() {
+		return 0, DISCONNECTED
+	}
 
 	fs := miner.getFileSystemState()
 
@@ -188,10 +203,16 @@ func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, error
 	return file.NumberOfRecords, NO_ERROR
 }
 
-// errorType can be one of: FILE_DOES_NOT_EXIST, NO_ERROR
+// errorType can be one of: FILE_DOES_NOT_EXIST, DISCONNECTED, NO_ERROR
 func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType FailureType) {
 	lg.Println("Handling read record request")
+
 	var read_result [512]byte
+
+	// check if miner is disconnected
+	if miner.minerState.IsDisconnected() {
+		return read_result, DISCONNECTED
+	}
 
 	fs := miner.getFileSystemState()
 
@@ -205,10 +226,15 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 	return read_result, NO_ERROR
 }
 
-// errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, NO_ERROR
+// errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, DISCONNECTED, NO_ERROR
 func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType) {
 	for {
 		lg.Println("Handling append record request")
+
+		// check if miner is disconnected
+		if miner.minerState.IsDisconnected() {
+			return 0, DISCONNECTED
+		}
 
 		fs := miner.getFileSystemState()
 
@@ -271,10 +297,15 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 	}
 }
 
-// errorType can be one of: FILE_DOES_NOT_EXIST, NO_ERROR
+// errorType can be one of: FILE_DOES_NOT_EXIST, DISCONNECTED, NO_ERROR
 func (miner MinerInstance) DeleteRecHandler(fname string) (errorType FailureType) {
 	for {
 		lg.Println("Handling delete file request")
+
+		// check if miner is disconnected
+		if miner.minerState.IsDisconnected() {
+			return DISCONNECTED
+		}
 
 		// create job
 		job := new(crypto.BlockOp)

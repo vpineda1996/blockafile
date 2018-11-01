@@ -84,8 +84,9 @@ func (c ClientHandler) ServiceClientRequest(conn net.Conn) error {
 			createFileError := (*minerInstance).CreateFileHandler(clientRequest.FileName)
 			minerResponse.ErrorType = createFileError
 		case shared.LIST_FILES:
-			fnames := (*minerInstance).ListFilesHandler()
+			fnames, listFilesError := (*minerInstance).ListFilesHandler()
 			minerResponse.FileNames = fnames
+			minerResponse.ErrorType = listFilesError
 		case shared.TOTAL_RECS:
 			numRecs, totalRecsError := (*minerInstance).TotalRecsHandler(clientRequest.FileName)
 			minerResponse.NumRecords = numRecs

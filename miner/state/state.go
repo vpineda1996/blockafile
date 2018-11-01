@@ -27,6 +27,7 @@ type MinerState struct {
 	incomingAddr string
 	listeners *list.List
 	listenersMux *sync.Mutex
+	singleMinerDisconnected bool
 }
 
 type Config struct {
@@ -44,6 +45,7 @@ type Config struct {
 	MinerId               string
 	GenesisBlockHash      [md5.Size]byte
 	GenOpBlockTimeout     uint8
+	SingleMinerDisconnected bool // true if we consider a single miner to be 'disconnected' from the network
 }
 
 var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
@@ -132,7 +134,7 @@ func (s MinerState) GetRemoteRoots() []*crypto.Block {
 // call from the tree when a block was confirmed and added to the tree
 func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
 	// notify calculators
-	s.logger.LogLocalEvent(fmt.Sprintf(" Block %v added to tree", b.Id()), INFO)
+	//s.logger.LogLocalEvent(fmt.Sprintf(" Block %v added to tree", b.Id()), INFO)
 	(*s.bc).RemoveJobsFromBlock(b)
 }
 
@@ -154,8 +156,9 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 			}
 		}(e)
 	}
+	
 	(*s.bc).RestartBlockCalculation()
-	s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
+	//s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
 }
 
 func (s MinerState) AddBlock(b *crypto.Block) {
@@ -180,7 +183,7 @@ func  (s MinerState) addBlock(hosts []string, b *crypto.Block) {
 		s.broadcastBlock(b, mp)
 	} else {
 		lg.Printf("WARN: Recieved block %v but rejected", b.Id())
-		s.logger.LogLocalEvent(fmt.Sprintf(" Recieved block %v but I have it", b.Id()), WARN)
+		//s.logger.LogLocalEvent(fmt.Sprintf(" Recieved block %v but I have it", b.Id()), WARN)
 	}
 }
 
@@ -210,12 +213,12 @@ func (s MinerState) broadcastBlock(b *crypto.Block, ignoreHosts map[string]bool)
 func (s MinerState) AddJob(b crypto.BlockOp) {
 	if (*s.bc).JobExists(&b) < 0 {
 		lg.Printf("Added new job: %v", b.Filename)
-		s.logger.LogLocalEvent(fmt.Sprintf(" Enqueuing job for file %v and record %v for miner to work on", b.Filename, b.RecordNumber), INFO)
+		//s.logger.LogLocalEvent(fmt.Sprintf(" Enqueuing job for file %v and record %v for miner to work on", b.Filename, b.RecordNumber), INFO)
 		(*s.bc).AddJob(&b)
 		s.broadcastJob(&b)
 	} else {
 		lg.Printf("WARN: Recieved job for file %v but rejected", b.Filename)
-		s.logger.LogLocalEvent(fmt.Sprintf(" Recieved job for file %v but I have it", b.Filename), WARN)
+		//s.logger.LogLocalEvent(fmt.Sprintf(" Recieved job for file %v but I have it", b.Filename), WARN)
 	}
 
 }
@@ -280,6 +283,10 @@ func (s MinerState) AddTreeListener(listener TreeListener) {
 	s.listenersMux.Unlock()
 }
 
+func (s MinerState) IsDisconnected() bool {
+	return s.singleMinerDisconnected && len(*s.clients) == 0
+}
+
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 	logger := govec.InitGoVector(config.MinerId, shared.LOGFILE + "_" + config.MinerId, shared.GoVecOpts)
 	cls := make(map[string]*api.MinerClient, len(connectedMiningNodes))
@@ -304,6 +311,7 @@ func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
 		incomingAddr: config.IncomingMinersAddr,
 		listeners: list.New(),
 		listenersMux: new(sync.Mutex),
+		singleMinerDisconnected: config.SingleMinerDisconnected,
 	}
 	treePtr = NewTreeManager(config, ms, ms)
 

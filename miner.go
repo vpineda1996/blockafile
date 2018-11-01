@@ -1,10 +1,11 @@
 package main
 
 import (
+	"./miner/instance"
+	"./shared"
 	"log"
 	"os"
 	"sync"
-	"./miner/instance"
 )
 
 func main() {
@@ -16,7 +17,7 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	instance.NewMinerInstance(argsWithoutProg[0], wg)
+	instance.NewMinerInstance(argsWithoutProg[0], wg, shared.DEFAULT_SINGLE_MINER_DISCONNECTED)
 	log.Println("Listening for clients...")
 	wg.Wait()
 }

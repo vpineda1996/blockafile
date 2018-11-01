@@ -37,8 +37,8 @@ func (m MockMiner) CreateFileHandler(fname string) (errorType FailureType) {
 	return NO_ERROR
 }
 
-func (m MockMiner) ListFilesHandler() (fnames []string) {
-	return []string{"File1", "File2", "File3"}
+func (m MockMiner) ListFilesHandler() (fnames []string, errorType FailureType) {
+	return []string{"File1", "File2", "File3"}, NO_ERROR
 }
 
 func (m MockMiner) TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType) {

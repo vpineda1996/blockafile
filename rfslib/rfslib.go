@@ -443,6 +443,8 @@ func (rfs RFSInstance) generateResponseError(
 		switch minerResponse.ErrorType {
 		case shared.BAD_FILENAME:
 			err = BadFilenameError(clientRequest.FileName)
+		case shared.DISCONNECTED:
+			err = DisconnectedError(rfs.minerAddr)
 		case shared.FILE_DOES_NOT_EXIST:
 			err = FileDoesNotExistError(clientRequest.FileName)
 		case shared.FILE_EXISTS:
