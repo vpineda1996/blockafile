@@ -2,7 +2,7 @@ package state
 
 import (
 	"../../crypto"
-	"../../shared"
+	. "../../shared"
 	"../api"
 	. "../block_calculators"
 	"container/list"
@@ -49,9 +49,6 @@ type Config struct {
 }
 
 var lg = log.New(os.Stdout, "state: ", log.Lmicroseconds|log.Lshortfile)
-var INFO = govec.GoLogOptions{Priority: govec.INFO}
-var ERR = govec.GoLogOptions{Priority: govec.ERROR}
-var WARN = govec.GoLogOptions{Priority: govec.WARNING}
 
 func (s MinerState) GetFilesystemState(
 	confirmsPerFileCreate int,
@@ -134,7 +131,7 @@ func (s MinerState) GetRemoteRoots() []*crypto.Block {
 // call from the tree when a block was confirmed and added to the tree
 func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
 	// notify calculators
-	//s.logger.LogLocalEvent(fmt.Sprintf(" Block %v added to tree", b.Id()), INFO)
+	s.LogLocalEvent(fmt.Sprintf(" Block %6v... added to tree", b.Id()), INFO)
 	(*s.bc).RemoveJobsFromBlock(b)
 }
 
@@ -158,7 +155,7 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 	}
 	
 	(*s.bc).RestartBlockCalculation()
-	//s.logger.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %v", b.Id()), INFO)
+	s.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %6v...", b.Id()), INFO)
 }
 
 func (s MinerState) AddBlock(b *crypto.Block) {
@@ -183,7 +180,7 @@ func  (s MinerState) addBlock(hosts []string, b *crypto.Block) {
 		s.broadcastBlock(b, mp)
 	} else {
 		lg.Printf("WARN: Recieved block %v but rejected", b.Id())
-		//s.logger.LogLocalEvent(fmt.Sprintf(" Recieved block %v but I have it", b.Id()), WARN)
+		s.LogLocalEvent(fmt.Sprintf(" Recieved block %6v... but I have it", b.Id()), WARN)
 	}
 }
 
@@ -213,12 +210,12 @@ func (s MinerState) broadcastBlock(b *crypto.Block, ignoreHosts map[string]bool)
 func (s MinerState) AddJob(b crypto.BlockOp) {
 	if (*s.bc).JobExists(&b) < 0 {
 		lg.Printf("Added new job: %v", b.Filename)
-		//s.logger.LogLocalEvent(fmt.Sprintf(" Enqueuing job for file %v and record %v for miner to work on", b.Filename, b.RecordNumber), INFO)
+		s.LogLocalEvent(fmt.Sprintf(" Enqueuing job for file [%v] and record [%v] for miner to work on", b.Filename, b.RecordNumber), INFO)
 		(*s.bc).AddJob(&b)
 		s.broadcastJob(&b)
 	} else {
 		lg.Printf("WARN: Recieved job for file %v but rejected", b.Filename)
-		//s.logger.LogLocalEvent(fmt.Sprintf(" Recieved job for file %v but I have it", b.Filename), WARN)
+		s.LogLocalEvent(fmt.Sprintf(" Recieved job for file [%v] but I have it", b.Filename), WARN)
 	}
 
 }
@@ -287,8 +284,12 @@ func (s MinerState) IsDisconnected() bool {
 	return s.singleMinerDisconnected && len(*s.clients) == 0
 }
 
+func (s MinerState) LogLocalEvent(message string, opts govec.GoLogOptions) {
+	s.logger.LogLocalEvent(message, opts)
+}
+
 func NewMinerState(config Config, connectedMiningNodes []string) MinerState {
-	logger := govec.InitGoVector(config.MinerId, shared.LOGFILE + "_" + config.MinerId, shared.GoVecOpts)
+	logger := govec.InitGoVector(config.MinerId, LOGFILE + "_" + config.MinerId, GoVecOpts)
 	cls := make(map[string]*api.MinerClient, len(connectedMiningNodes))
 	for _, c := range connectedMiningNodes {
 		conn, err := api.NewMinerClient(c, config.IncomingMinersAddr, config.OutgoingMinersIP, logger)

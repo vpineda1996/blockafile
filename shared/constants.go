@@ -24,3 +24,7 @@ var GoVecOpts = govec.GoLogConfig{
 	LogToFile:     true,
 	Priority:      govec.DEBUG,
 }
+
+var INFO = govec.GoLogOptions{Priority: govec.INFO}
+var ERR = govec.GoLogOptions{Priority: govec.ERROR}
+var WARN = govec.GoLogOptions{Priority: govec.WARNING}
