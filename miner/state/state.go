@@ -131,7 +131,7 @@ func (s MinerState) GetRemoteRoots() []*crypto.Block {
 // call from the tree when a block was confirmed and added to the tree
 func (s MinerState) OnNewBlockInTree(b *crypto.Block) {
 	// notify calculators
-	s.LogLocalEvent(fmt.Sprintf(" Block %6s... added to tree", b.Id()), INFO)
+	s.LogLocalEvent(fmt.Sprintf(" Block %s... added to tree", TruncateString(b.Id(), 6)), INFO)
 	(*s.bc).RemoveJobsFromBlock(b)
 }
 
@@ -155,7 +155,7 @@ func (s MinerState) OnNewBlockInLongestChain(b *crypto.Block) {
 	}
 	
 	(*s.bc).RestartBlockCalculation()
-	s.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %6s...", b.Id()), INFO)
+	s.LogLocalEvent(fmt.Sprintf(" New head on longest chain: %s...", TruncateString(b.Id(), 6)), INFO)
 }
 
 func (s MinerState) AddBlock(b *crypto.Block) {
@@ -180,7 +180,7 @@ func  (s MinerState) addBlock(hosts []string, b *crypto.Block) {
 		s.broadcastBlock(b, mp)
 	} else {
 		lg.Printf("WARN: Recieved block %v but rejected", b.Id())
-		s.LogLocalEvent(fmt.Sprintf(" Recieved block %6s... but I have it", b.Id()), WARN)
+		s.LogLocalEvent(fmt.Sprintf(" Recieved block %s... but I have it", TruncateString(b.Id(), 6)), WARN)
 	}
 }
 
