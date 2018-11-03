@@ -8,6 +8,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -115,6 +116,7 @@ func NewMinerInstance(configFilename string, group *sync.WaitGroup, singleMinerD
 func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureType) {
 	for {
 		lg.Println("Handling create file request")
+		miner.minerState.LogLocalEvent(fmt.Sprintf(" Handling create file [%s] request from client", fname), INFO)
 
 		// check if miner is disconnected
 		if miner.minerState.IsDisconnected() {
@@ -167,6 +169,7 @@ func (miner MinerInstance) CreateFileHandler(fname string) (errorType FailureTyp
 // errorType can be one of: DISCONNECTED, NO_ERROR
 func (miner MinerInstance) ListFilesHandler() (fnames []string, errorType FailureType) {
 	lg.Println("Handling list files request")
+	miner.minerState.LogLocalEvent(fmt.Sprintf(" Handling list files request from client"), INFO)
 
 	// check if miner is disconnected
 	if miner.minerState.IsDisconnected() {
@@ -188,6 +191,7 @@ func (miner MinerInstance) ListFilesHandler() (fnames []string, errorType Failur
 // errorType can be one of: FILE_DOES_NOT_EXIST, DISCONNECTED, NO_ERROR
 func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, errorType FailureType) {
 	lg.Println("Handling total records request")
+	miner.minerState.LogLocalEvent(fmt.Sprintf(" Handling total records in [%s] request from client", fname), INFO)
 
 	// check if miner is disconnected
 	if miner.minerState.IsDisconnected() {
@@ -206,6 +210,8 @@ func (miner MinerInstance) TotalRecsHandler(fname string) (numRecs uint16, error
 // errorType can be one of: FILE_DOES_NOT_EXIST, DISCONNECTED, NO_ERROR
 func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (record [512]byte, errorType FailureType) {
 	lg.Println("Handling read record request")
+	miner.minerState.LogLocalEvent(
+		fmt.Sprintf(" Handling read record in [%s] at index [%v] request from client", fname, recordNum), INFO)
 
 	var read_result [512]byte
 
@@ -230,6 +236,7 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (recordNum uint16, errorType FailureType) {
 	for {
 		lg.Println("Handling append record request")
+		miner.minerState.LogLocalEvent(fmt.Sprintf(" Handling append record to [%s] request from client", fname), INFO)
 
 		// check if miner is disconnected
 		if miner.minerState.IsDisconnected() {
@@ -301,6 +308,7 @@ func (miner MinerInstance) AppendRecHandler(fname string, record [512]byte) (rec
 func (miner MinerInstance) DeleteRecHandler(fname string) (errorType FailureType) {
 	for {
 		lg.Println("Handling delete file request")
+		miner.minerState.LogLocalEvent(fmt.Sprintf(" Handling delete file [%s] request from client", fname), INFO)
 
 		// check if miner is disconnected
 		if miner.minerState.IsDisconnected() {

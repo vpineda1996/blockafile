@@ -2,7 +2,9 @@ package api
 
 import (
 	"../../crypto"
+	. "../../shared"
 	"errors"
+	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/DistributedClocks/GoVector/govec/vrpc"
 	"net"
@@ -35,6 +37,7 @@ type GetNodeRes struct {
 }
 
 func (m *MinerServer) GetBlock(args *GetNodeArgs, res *GetNodeRes) error {
+	m.logger.LogLocalEvent(fmt.Sprintf(" Received GetBlock request"), INFO)
 	m.listener.AddHost(args.Host)
 	bk, ok := m.listener.GetBlock(args.Id)
 	if ok {
@@ -57,6 +60,7 @@ type EmptyArgs struct{
 }
 
 func (m *MinerServer) GetRoots(e *EmptyArgs, res *[]*crypto.Block) error {
+	m.logger.LogLocalEvent(fmt.Sprintf(" Received GetRoots request"), INFO)
 	m.listener.AddHost(e.Host)
 	bkArr := m.listener.GetRoots()
 	*res = bkArr
@@ -73,6 +77,7 @@ type ReceiveNodeArgs struct {
 }
 
 func (m *MinerServer) ReceiveNode(args *ReceiveNodeArgs, res *bool) error {
+	m.logger.LogLocalEvent(fmt.Sprintf(" Received ReceiveNode request"), INFO)
 	m.listener.AddHost(args.Host)
 	*res = true
 	m.listener.AddBlockIgnoringHost(args.Host, &args.Block)
@@ -85,6 +90,7 @@ type ReceiveJobArgs struct {
 }
 
 func (m *MinerServer) ReceiveJob(args *ReceiveJobArgs, res *bool) error {
+	m.logger.LogLocalEvent(fmt.Sprintf(" Received ReceiveJob request"), INFO)
 	m.listener.AddHost(args.Host)
 	*res = true
 	m.listener.AddJob(args.BlockOp)

@@ -2,6 +2,7 @@ package api
 
 import (
 	"../../crypto"
+	. "../../shared"
 	"errors"
 	"fmt"
 	"github.com/DistributedClocks/GoVector/govec"
@@ -29,6 +30,7 @@ func (m MinerClient) GetBlock(id string) (*crypto.Block, bool, error) {
 	ans := new(GetNodeRes)
 
 	c := make(chan error, 1)
+	m.logger.LogLocalEvent(fmt.Sprintf(" Calling MinerServer.GetBlock"), INFO)
 	go func() { c <- m.client.Call("MinerServer.GetBlock", args, &ans) }()
 
 	select {
@@ -54,6 +56,7 @@ func (m MinerClient) GetRoots() ([]*crypto.Block, error) {
 	ans := make([]*crypto.Block, 0, 1)
 
 	c := make(chan error, 1)
+	m.logger.LogLocalEvent(fmt.Sprintf(" Calling MinerServer.GetRoots"), INFO)
 	go func() { c <- m.client.Call("MinerServer.GetRoots", args, &ans) }()
 
 	select {
@@ -84,6 +87,7 @@ func (m MinerClient) SendBlock(block *crypto.Block) {
 	ans := new(bool)
 
 	c := make(chan *rpc.Call, 1)
+	m.logger.LogLocalEvent(fmt.Sprintf(" Calling MinerServer.ReceiveNode"), INFO)
 	m.client.Go("MinerServer.ReceiveNode", args, &ans, c)
 	// dicard c as we are just flooding
 }
@@ -96,6 +100,7 @@ func (m MinerClient) SendJob(block *crypto.BlockOp) {
 	ans := new(bool)
 
 	c := make(chan *rpc.Call, 1)
+	m.logger.LogLocalEvent(fmt.Sprintf(" Calling MinerServer.ReceiveJob"), INFO)
 	m.client.Go("MinerServer.ReceiveJob", args, &ans, c)
 }
 
