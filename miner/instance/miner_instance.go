@@ -228,15 +228,14 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 			return read_result, FILE_DOES_NOT_EXIST
 		}
 
-		if file.NumberOfRecords >= recordNum {
+		if recordNum >= file.NumberOfRecords {
 			// the record does not exist yet, wait until it does
 			time.Sleep(time.Second)
-			continue
+		} else {
+			offset := recordNum * 512
+			copy(read_result[:], file.Data[offset:offset+512])
+			return read_result, NO_ERROR
 		}
-
-		offset := recordNum * 512
-		copy(read_result[:], file.Data[offset:offset+512])
-		return read_result, NO_ERROR
 	}
 }
 
