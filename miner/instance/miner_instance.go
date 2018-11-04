@@ -213,23 +213,31 @@ func (miner MinerInstance) ReadRecHandler(fname string, recordNum uint16) (recor
 	miner.minerState.LogLocalEvent(
 		fmt.Sprintf(" Handling read record in [%s] at index [%v] request from client", fname, recordNum), INFO)
 
-	var read_result [512]byte
+	for {
+		var read_result [512]byte
 
-	// check if miner is disconnected
-	if miner.minerState.IsDisconnected() {
-		return read_result, DISCONNECTED
+		// check if miner is disconnected
+		if miner.minerState.IsDisconnected() {
+			return read_result, DISCONNECTED
+		}
+
+		fs := miner.getFileSystemState()
+
+		file, ok := fs.GetFile(Filename(fname))
+		if !ok {
+			return read_result, FILE_DOES_NOT_EXIST
+		}
+
+		if file.NumberOfRecords >= recordNum {
+			// the record does not exist yet, wait until it does
+			time.Sleep(time.Second)
+			continue
+		}
+
+		offset := recordNum * 512
+		copy(read_result[:], file.Data[offset:offset+512])
+		return read_result, NO_ERROR
 	}
-
-	fs := miner.getFileSystemState()
-
-	file, ok := fs.GetFile(Filename(fname))
-	if !ok {
-		return read_result, FILE_DOES_NOT_EXIST
-	}
-
-	offset := recordNum * 512
-	copy(read_result[:], file.Data[offset:offset+512])
-	return read_result, NO_ERROR
 }
 
 // errorType can be one of: FILE_DOES_NOT_EXIST, MAX_LEN_REACHED, DISCONNECTED, NO_ERROR
