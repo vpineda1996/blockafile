@@ -16,10 +16,10 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
-	"os"
 	"time"
 )
 
@@ -131,7 +131,7 @@ type RFS interface {
 }
 
 // Logger
-var lg = log.New(os.Stdout, "rfslib: ", log.Ltime)
+var lg = log.New(ioutil.Discard, "rfslib: ", log.Ltime)
 
 // The constructor for a new RFS object instance. Takes the miner's
 // IP:port address string as parameter, and the localAddr which is the
